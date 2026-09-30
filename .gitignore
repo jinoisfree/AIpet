@@ -1,0 +1,13 @@
+.build/
+dist/
+evidence/
+.venv/
+__pycache__/
+*.py[cod]
+.DS_Store
+.env
+.env.*
+*.log
+*.jsonl
+*.xcuserstate
+xcuserdata/
