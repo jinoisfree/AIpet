@@ -158,14 +158,14 @@ struct CoreTests {
         }
         try line(record("event_msg", ["type": "task_started", "turn_id": "codex-turn"], at: now.addingTimeInterval(-100))).write(to: codexPath)
         try append(screenCall, to: codexPath)
-        try append(record("response_item", ["type": "function_call_output", "call_id": "cua1", "output": [["type": "input_text", "text": "Window: \"Work\", App: AIpet.v1.\nPRIVATE BODY"]]], at: now), to: codexPath)
+        try append(record("response_item", ["type": "function_call_output", "call_id": "cua1", "output": [["type": "input_text", "text": "Window: \"Work\", App: AIpet.\nPRIVATE BODY"]]], at: now), to: codexPath)
         try line(cr("user", "PRIVATE PROMPT", now.addingTimeInterval(-50))).write(to: claudePath)
         try append(cr("assistant", [["type": "tool_use", "name": "computer", "id": "claude-screen"]], now.addingTimeInterval(-1)), to: claudePath)
         let focusMonitor = StatusMonitor(codexRoot: codexDir, claudeRoot: claudeDir, eventRoot: root.appendingPathComponent("no-hooks"))
         let firstFocus = focusMonitor.poll(now: now)
         check(firstFocus.screenFocus?.provider == .codex, "monitor selects older overall task even when Claude began screen use first")
         check(abs(firstFocus.screenFocus!.taskStartedAt!.timeIntervalSince(now.addingTimeInterval(-100))) < 0.01, "task start survives screen output updates")
-        check(firstFocus.screenFocus?.target?.appName == "AIpet.v1", "matched screen output metadata reaches snapshot")
+        check(firstFocus.screenFocus?.target?.appName == "AIpet", "matched screen output metadata reaches snapshot")
         let focusEncoded = String(data: try JSONEncoder().encode(firstFocus), encoding: .utf8)!
         check(!focusEncoded.contains("PRIVATE"), "focus metadata excludes prompt and observation body")
         try append(cr("assistant", [["type": "tool_use", "name": "computer", "id": "claude-screen2"]], now.addingTimeInterval(1)), to: claudePath)

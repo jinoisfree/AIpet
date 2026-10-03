@@ -24,7 +24,7 @@ struct Dashboard: View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 6) {
-                    Text("AIpet.v1").font(.system(size: 29, weight: .bold, design: .rounded))
+                    Text("AIpet").font(.system(size: 29, weight: .bold, design: .rounded))
                     Text(model.identity.dashboardIntroduction).font(.system(size: 13)).foregroundColor(.secondary)
                 }
                 Spacer()

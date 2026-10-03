@@ -39,7 +39,7 @@ struct InteractionTests {
         }
 
         let date = Date()
-        let target = ScreenTarget(appName: "AIpet.v1", windowTitle: "AI 작업")
+        let target = ScreenTarget(appName: "AIpet", windowTitle: "AI 작업")
         func focus(_ id: String, _ started: Double?, _ expiry: Double = 60, target: ScreenTarget? = nil) -> ScreenFocus {
             ScreenFocus(taskID: id, turnID: "t1", provider: id == "first" ? .claude : .codex,
                         taskStartedAt: started.map { date.addingTimeInterval($0) }, firstObservedAt: date,
@@ -54,19 +54,19 @@ struct InteractionTests {
         check(ScreenFocus.select([focus("b", -100), focus("a", -100)], now: date)?.taskID == "a", "deterministic equal-start tie")
         check(ScreenFocus.select([focus("unknown", nil)], now: date)?.taskStartedAt == nil, "partial transcript does not invent a start time")
 
-        let output: [[String: Any]] = [["type": "input_text", "text": "Window: \"AI 작업\", App: AIpet.v1.\nPRIVATE BODY"], ["type": "image", "data": "PRIVATE IMAGE"]]
+        let output: [[String: Any]] = [["type": "input_text", "text": "Window: \"AI 작업\", App: AIpet.\nPRIVATE BODY"], ["type": "image", "data": "PRIVATE IMAGE"]]
         check(ScreenTarget.fromOutput(output) == target, "observation header preserves dots in app name")
         check(ScreenTarget.fromOutput("PRIVATE BODY") == nil, "arbitrary output is not a target")
         check(ScreenTarget.fromOutput("Window: \"a\", App: A.\nWindow: \"b\", App: B.") == nil, "multi-app observation is ambiguous")
         let rect = CGRect(x: -800, y: 80, width: 600, height: 400)
-        let a = ScreenWindow(id: 1, appName: "AIpet.v1", title: "AI 작업", bounds: rect)
-        let b = ScreenWindow(id: 2, appName: "AIpet.v1", title: "옵션", bounds: rect)
-        let hiddenTitle = ScreenWindow(id: 3, appName: "AIpet.v1", title: nil, bounds: rect)
+        let a = ScreenWindow(id: 1, appName: "AIpet", title: "AI 작업", bounds: rect)
+        let b = ScreenWindow(id: 2, appName: "AIpet", title: "옵션", bounds: rect)
+        let hiddenTitle = ScreenWindow(id: 3, appName: "AIpet", title: nil, bounds: rect)
         check(ScreenWindowSelection.select(target: target, windows: [b, a])?.id == 1, "exact title beats frontmost window")
         check(ScreenWindowSelection.select(target: target, windows: [b]) == nil, "closed target does not switch to another title")
         check(ScreenWindowSelection.select(target: target, windows: [hiddenTitle])?.id == 3, "unique app window works when macOS omits titles")
         check(ScreenWindowSelection.select(target: target, windows: [hiddenTitle, b]) == nil, "missing title and multiple windows stays unknown")
-        check(ScreenWindowSelection.select(target: ScreenTarget(appName: "AIpet.v1", windowTitle: nil), windows: [a,b]) == nil, "app alone never guesses among windows")
+        check(ScreenWindowSelection.select(target: ScreenTarget(appName: "AIpet", windowTitle: nil), windows: [a,b]) == nil, "app alone never guesses among windows")
         let converted = ScreenWindowSelection.appKitBounds(rect, primaryTop: 1080)
         check(converted.minX == -800 && converted.minY == 600, "Quartz to AppKit coordinates across displays")
         print("PASS: \(passed) cursor, focus and window checks")

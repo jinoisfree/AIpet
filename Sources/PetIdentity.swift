@@ -35,5 +35,5 @@ struct PetIdentity: Equatable {
     var greeting: String { name + (hasFinalConsonant ? "과" : "와") + " 함께" }
     var idleHeadline: String { "\(subject) 지켜보고 있어요" }
     var dashboardIntroduction: String { "AI가 일하는 동안, \(subject) 살펴볼게요." }
-    var dashboardTitle: String { "AIpet.v1 · \(name) · AI 작업" }
+    var dashboardTitle: String { "AIpet · \(name) · AI 작업" }
 }

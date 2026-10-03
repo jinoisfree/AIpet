@@ -6,7 +6,7 @@ import tempfile
 import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
-BIN = ROOT / 'dist/AIpet.v1.app/Contents/MacOS/Taesik'
+BIN = ROOT / 'dist/AIpet.app/Contents/MacOS/Taesik'
 SCRIPT = ROOT / 'scripts/configure_hooks.py'
 
 class HookTests(unittest.TestCase):
@@ -30,7 +30,7 @@ class HookTests(unittest.TestCase):
 
     def test_preview_and_create_only_and_idempotency(self):
         with tempfile.TemporaryDirectory(prefix='taesik-config-') as temporary:
-            command = ['python3', str(SCRIPT), '--app', str(ROOT / 'dist/AIpet.v1.app'), '--home', temporary]
+            command = ['python3', str(SCRIPT), '--app', str(ROOT / 'dist/AIpet.app'), '--home', temporary]
             preview = subprocess.run(command, capture_output=True, text=True)
             self.assertEqual(preview.returncode, 0)
             self.assertFalse((Path(temporary) / '.codex/hooks.json').exists())
@@ -51,7 +51,7 @@ class HookTests(unittest.TestCase):
             target = Path(temporary) / '.claude/settings.json'
             target.parent.mkdir()
             target.write_text('{"hooks": {"Stop": []}}')
-            result = subprocess.run(['python3', str(SCRIPT), '--app', str(ROOT / 'dist/AIpet.v1.app'),
+            result = subprocess.run(['python3', str(SCRIPT), '--app', str(ROOT / 'dist/AIpet.app'),
                                      '--home', temporary, '--apply'], capture_output=True, text=True)
             self.assertNotEqual(result.returncode, 0)
             self.assertFalse((Path(temporary) / '.codex/hooks.json').exists())

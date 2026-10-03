@@ -59,7 +59,7 @@ final class PetVibrancyView: NSVisualEffectView {
 }
 
 final class BubbleTextView: NSView {
-    var headline = "AIpet.v1" { didSet { needsDisplay = true } }
+    var headline = "AIpet" { didSet { needsDisplay = true } }
     var subtitle = "AI 작업을 살펴보고 있어요" { didSet { needsDisplay = true } }
     var state: WorkState = .idle { didSet { updateStatusIndicator(); needsDisplay = true } }
     private let statusDot = CALayer()
@@ -114,7 +114,7 @@ final class PetView: NSView {
     var spriteRect: CGRect { placement?.spriteRect ?? PetLayout(scale: petScale).spriteRect }
     var petScale: CGFloat = 1 { didSet { needsLayout = true; needsDisplay = true } }
     var state: WorkState = .idle { didSet { bubbleText.state = state } }
-    var headline = "AIpet.v1" { didSet { bubbleText.headline = headline; updateIdentityDescription() } }
+    var headline = "AIpet" { didSet { bubbleText.headline = headline; updateIdentityDescription() } }
     var subtitle = "AI 작업을 살펴보고 있어요" { didSet { bubbleText.subtitle = subtitle } }
     var onClick: (() -> Void)?
     var onMenu: ((NSEvent) -> Void)?
@@ -180,7 +180,7 @@ final class PetView: NSView {
     }
     required init?(coder: NSCoder) { fatalError() }
     private func updateIdentityDescription() {
-        setAccessibilityLabel("AIpet.v1 · \(identity.name) · \(headline) · 작업 목록 열기")
+        setAccessibilityLabel("AIpet · \(identity.name) · \(headline) · 작업 목록 열기")
         toolTip = "\(identity.name) · 클릭: 작업 목록 · 드래그: 이동 · 오른쪽 클릭: 메뉴"
     }
     override var isOpaque: Bool { false }

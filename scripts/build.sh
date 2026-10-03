@@ -4,8 +4,8 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 BUILD="$ROOT/.build"
 STAGING=$(mktemp -d /private/tmp/taesik-build.XXXXXX)
 trap 'rm -rf "$STAGING"' EXIT
-APP="$STAGING/AIpet.v1.app"
-OUTPUT="$ROOT/dist/AIpet.v1.app"
+APP="$STAGING/AIpet.app"
+OUTPUT="$ROOT/dist/AIpet.app"
 mkdir -p "$BUILD/module-cache" "$APP/Contents/MacOS" "$APP/Contents/Resources/Pet"
 python3 "$ROOT/scripts/prepare_assets.py"
 xcrun swiftc -swift-version 5 -O -parse-as-library -module-cache-path "$BUILD/module-cache" -target arm64-apple-macosx13.0 -framework AppKit -framework SwiftUI "$ROOT"/Sources/*.swift -o "$BUILD/Taesik"

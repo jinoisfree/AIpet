@@ -1,6 +1,6 @@
 # AIpet
 
-**AIpet.v1**은 Codex와 Claude Code의 작업 상태를 알려 주는 독립형 macOS 데스크톱 펫입니다. AI가 작업하는 동안 태식이가 화면에 머물며 작업 중·확인 필요·응답 종료 등의 상태를 표시합니다.
+**AIpet**은 Codex와 Claude Code의 작업 상태를 알려 주는 독립형 macOS 데스크톱 펫입니다. AI가 작업하는 동안 태식이가 화면에 머물며 작업 중·확인 필요·응답 종료 등의 상태를 표시합니다.
 
 `v1`은 첫 번째 주요 버전을 뜻하며 현재 앱 버전은 **1.0.3**입니다. Swift, AppKit, SwiftUI로 구현했습니다. 실행할 때 Python, Node.js, API 키가 필요하지 않습니다.
 
@@ -31,7 +31,9 @@ Intel Mac용 바이너리는 제공하지 않습니다. 이전 macOS 버전별 �
 
 ## 다운로드와 실행
 
-[Releases](https://github.com/jinoisfree/AIpet/releases)에서 Apple Silicon용 ZIP을 내려받아 압축을 풀면 `AIpet.v1.app`이 나옵니다. 응용 프로그램 폴더에 복사한 뒤 실행할 수 있습니다.
+[Releases](https://github.com/jinoisfree/AIpet/releases)에서 Apple Silicon용 ZIP을 내려받아 압축을 풀면 `AIpet.app`이 나옵니다. 응용 프로그램 폴더에 복사한 뒤 실행할 수 있습니다.
+
+1.0.4부터 앱 이름이 `AIpet.v1`에서 `AIpet`으로 바뀌었습니다. 1.0.3 이하를 쓰고 있었다면 `AIpet.v1.app`을 종료하고 삭제한 뒤 `AIpet.app`을 설치하세요. 내부 번들 ID가 같아 이름·크기·위치 설정은 그대로 이어지며, 두 앱을 함께 실행할 수는 없습니다.
 
 현재 빌드는 **ad-hoc 서명**이며 Developer ID 서명·Apple 공증을 받지 않았습니다. 다운로드한 앱은 macOS 보안 정책에 따라 실행이 제한될 수 있습니다.
 
@@ -50,7 +52,7 @@ python3 -m pip install -r "$PWD/requirements-build.txt"
 bash "$PWD/scripts/test.sh"
 bash "$PWD/scripts/build.sh"
 python3 -m unittest discover -s "$PWD/Tests" -p 'test_*.py'
-open "$PWD/dist/AIpet.v1.app"
+open "$PWD/dist/AIpet.app"
 ```
 
 새 설치본을 사용자 응용 프로그램 폴더에 복사하려면 다음 명령을 사용합니다. 기존 설치본이 있으면 교체하지 않고 중단합니다.
@@ -72,7 +74,7 @@ bash "$PWD/scripts/package.sh"
 공식 훅을 연결하면 승인 대기 등 상태 정보가 보강됩니다. 설치 후 아래 명령으로 추가할 설정을 먼저 확인합니다.
 
 ```bash
-python3 "$PWD/scripts/configure_hooks.py" --app "$HOME/Applications/AIpet.v1.app"
+python3 "$PWD/scripts/configure_hooks.py" --app "$HOME/Applications/AIpet.app"
 ```
 
 검토한 뒤 `--apply`를 추가하면 **없는 설정 파일만** 생성합니다. 기존 `~/.codex/hooks.json` 또는 `~/.claude/settings.json`이 있으면 자동 병합·덮어쓰기를 하지 않습니다. 기존 설정과 출력된 훅 항목을 검토해 병합해야 합니다. 사용자 지정 설정 디렉터리를 쓰는 경우 생성된 경로를 직접 확인하세요.
@@ -89,7 +91,7 @@ Codex 훅은 `/hooks`에서 사용자 신뢰 검토가 필요합니다. Claude C
 - 대화 본문·추론 내용·도구 출력·스크린샷을 복제해 보관하거나 외부로 전송하지 않습니다. 훅 이벤트에는 작업 식별자·상태·시각 등의 메타데이터가 저장됩니다.
 - 진단 스냅샷에는 작업 식별자·프로젝트 폴더 이름·앱·창 이름이 포함될 수 있습니다. 공개 이슈에 첨부하기 전에 개인 정보를 확인하세요.
 
-기존 설정과의 호환성을 위해 내부 번들 ID `com.jinoisfree.taesik`, 실행 파일 `Taesik`, 데이터 경로 `~/Library/Application Support/Taesik`은 유지합니다. 사용자에게 보이는 앱 이름은 `AIpet.v1`입니다.
+기존 설정과의 호환성을 위해 내부 번들 ID `com.jinoisfree.taesik`, 실행 파일 `Taesik`, 데이터 경로 `~/Library/Application Support/Taesik`은 유지합니다. 사용자에게 보이는 앱 이름은 `AIpet`입니다.
 
 ## 프로젝트 구조와 검증
 

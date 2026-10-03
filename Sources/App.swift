@@ -110,7 +110,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     }
 
     func updatePet() {
-        statusItem.button?.toolTip = "AIpet.v1 · \(model.identity.name) · 작업 중 \(model.tasks.filter { $0.state == .running }.count)개"
+        statusItem.button?.toolTip = "AIpet · \(model.identity.name) · 작업 중 \(model.tasks.filter { $0.state == .running }.count)개"
         guard !isPreview else { return }
         if model.paused {
             pet.state = .idle; pet.headline = "\(model.identity.subject) 쉬고 있어요"; pet.subtitle = "메뉴에서 다시 시작할 수 있어요"; return
@@ -139,7 +139,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
 
     func buildMenu() {
         statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
-        statusItem.button?.image = NSImage(systemSymbolName: "pawprint.fill", accessibilityDescription: "AIpet.v1")
+        statusItem.button?.image = NSImage(systemSymbolName: "pawprint.fill", accessibilityDescription: "AIpet")
         menu = NSMenu()
         addMenu("작업 목록 열기", #selector(showDashboard))
         addMenu("펫 보이기 / 숨기기", #selector(togglePet))
@@ -151,7 +151,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         addMenu("마우스 시선 미리보기", #selector(previewPointer))
         addMenu("승인 알림 연결 안내", #selector(showHooksHelp))
         menu.addItem(.separator())
-        addMenu("AIpet.v1 종료", #selector(quit))
+        addMenu("AIpet 종료", #selector(quit))
         statusItem.menu = menu
     }
     func addMenu(_ title: String, _ selector: Selector) {
@@ -174,7 +174,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     @objc func showOptions() {
         if optionsWindow == nil {
             let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 360, height: 280), styleMask: [.titled, .closable], backing: .buffered, defer: false)
-            window.title = "AIpet.v1 옵션"; window.isReleasedWhenClosed = false
+            window.title = "AIpet 옵션"; window.isReleasedWhenClosed = false
             let content = NSView(frame: NSRect(x: 0, y: 0, width: 360, height: 280))
             let nameLabel = NSTextField(labelWithString: "펫 이름")
             nameLabel.font = .systemFont(ofSize: 14, weight: .semibold)

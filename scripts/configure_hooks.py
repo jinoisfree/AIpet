@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Preview or create AIpet.v1 hooks. Existing configuration is never overwritten."""
+"""Preview or create AIpet hooks. Existing configuration is never overwritten."""
 import argparse
 import json
 import os
