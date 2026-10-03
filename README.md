@@ -33,7 +33,7 @@ Intel Mac용 바이너리는 제공하지 않습니다. 이전 macOS 버전별 �
 
 [Releases](https://github.com/jinoisfree/AIpet/releases)에서 Apple Silicon용 ZIP을 내려받아 압축을 풀면 `AIpet.app`이 나옵니다. 응용 프로그램 폴더에 복사한 뒤 실행할 수 있습니다.
 
-1.0.4부터 앱 이름이 `AIpet.v1`에서 `AIpet`으로 바뀌었습니다. 1.0.3 이하를 쓰고 있었다면 `AIpet.v1.app`을 종료하고 삭제한 뒤 `AIpet.app`을 설치하세요. 내부 번들 ID가 같아 이름·크기·위치 설정은 그대로 이어지며, 두 앱을 함께 실행할 수는 없습니다.
+1.0.4부터 앱 이름이 `AIpet.v1`에서 `AIpet`으로 바뀌었습니다. 1.0.3 이하를 쓰고 있었다면 `AIpet.v1.app`을 종료하고 삭제한 뒤 `AIpet.app`을 설치하세요(소스에서 설치하면 `scripts/install.py`가 대신 합니다). 내부 번들 ID가 같아 이름·크기·위치 설정은 그대로 이어지며, 두 앱을 함께 실행할 수는 없습니다.
 
 현재 빌드는 **ad-hoc 서명**이며 Developer ID 서명·Apple 공증을 받지 않았습니다. 다운로드한 앱은 macOS 보안 정책에 따라 실행이 제한될 수 있습니다.
 
@@ -55,7 +55,7 @@ python3 -m unittest discover -s "$PWD/Tests" -p 'test_*.py'
 open "$PWD/dist/AIpet.app"
 ```
 
-새 설치본을 사용자 응용 프로그램 폴더에 복사하려면 다음 명령을 사용합니다. 기존 설치본이 있으면 교체하지 않고 중단합니다.
+설치와 버전 올리기는 같은 명령입니다. 빌드한 앱을 `~/Applications/AIpet.app`에 설치하고, 이전 버전은 삭제합니다. 삭제 대상은 이전 이름의 `AIpet.v1.app`과 다른 응용 프로그램 폴더(`/Applications`)에 있는 `AIpet.app`이며, 이미 설치된 `AIpet.app`은 새 사본을 검증한 뒤 교체합니다. 실행 중인 펫은 먼저 종료하고, 종료되지 않으면 파일을 건드리지 않고 중단합니다. 설정은 그대로 유지됩니다.
 
 ```bash
 python3 "$PWD/scripts/install.py"
