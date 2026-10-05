@@ -122,6 +122,7 @@ final class PetView: NSView {
     var identity: PetIdentity { didSet { updateIdentityDescription() } }
     let bubbleText = BubbleTextView()
     private var bubbleSurface: NSView!
+    private var trail: [NSView] = []
     var placement: PetPlacement? { didSet { needsLayout = true; needsDisplay = true } }
     var spriteRect: CGRect { placement?.spriteRect ?? PetLayout(scale: petScale).spriteRect }
     var petScale: CGFloat = 1 { didSet { needsLayout = true; needsDisplay = true } }
@@ -165,25 +166,11 @@ final class PetView: NSView {
         super.init(frame: NSRect(origin: .zero, size: PetLayout(scale: 1).windowSize))
         wantsLayer = true
         layer?.backgroundColor = NSColor.clear.cgColor
-        if #available(macOS 26.0, *) {
-            let glass = PetGlassView()
-            glass.style = .clear
-            glass.cornerRadius = 20
-            glass.contentView = bubbleText
-            bubbleSurface = glass
-        } else {
-            let glass = PetVibrancyView()
-            glass.material = .popover
-            glass.blendingMode = .behindWindow
-            glass.state = .active
-            glass.wantsLayer = true
-            glass.layer?.cornerRadius = 20
-            glass.layer?.masksToBounds = true
-            glass.addSubview(bubbleText)
-            bubbleText.autoresizingMask = [.width, .height]
-            bubbleSurface = glass
-        }
+        bubbleSurface = Self.surface(cornerRadius: 20, content: bubbleText)
         addSubview(bubbleSurface)
+        // The trail of a thought bubble, in the same material as the bubble.
+        trail = ThoughtTrail.diameters.map { Self.surface(cornerRadius: $0 / 2, content: nil) }
+        trail.forEach(addSubview)
         setAccessibilityElement(true)
         setAccessibilityRole(.button)
         headline = identity.greeting
@@ -196,6 +183,24 @@ final class PetView: NSView {
         RunLoop.main.add(animationTimer, forMode: .common)
     }
     required init?(coder: NSCoder) { fatalError() }
+    private static func surface(cornerRadius: CGFloat, content: NSView?) -> NSView {
+        if #available(macOS 26.0, *) {
+            let glass = PetGlassView()
+            glass.style = .clear
+            glass.cornerRadius = cornerRadius
+            glass.contentView = content
+            return glass
+        }
+        let glass = PetVibrancyView()
+        glass.material = .popover
+        glass.blendingMode = .behindWindow
+        glass.state = .active
+        glass.wantsLayer = true
+        glass.layer?.cornerRadius = cornerRadius
+        glass.layer?.masksToBounds = true
+        if let content { glass.addSubview(content); content.autoresizingMask = [.width, .height] }
+        return glass
+    }
     private func updateIdentityDescription() {
         setAccessibilityLabel("AIpet · \(identity.name) · \(headline) · 작업 목록 열기")
         toolTip = "\(identity.name) · 클릭: 작업 목록 · 드래그: 이동 · 오른쪽 클릭: 메뉴"
@@ -205,6 +210,9 @@ final class PetView: NSView {
     override func layout() {
         super.layout()
         bubbleSurface.frame = placement?.bubbleRect ?? PetLayout(scale: petScale).bubbleRect
+        let below = placement?.bubbleBelow == true
+        let circles = ThoughtTrail.circles(bubble: bubbleSurface.frame, pet: PetLayout.trailEnd(sprite: spriteRect, below: below), below: below)
+        for (circle, frame) in zip(trail, circles) { circle.frame = frame }
         bubbleText.frame = NSRect(origin: .zero, size: PetLayout.bubbleSize)
         updateTrackingAreas()
     }

@@ -1,21 +1,52 @@
 import Foundation
 import CoreGraphics
 
+/// Three shrinking circles lead from the bubble to the pet, the way a thought is drawn.
+enum ThoughtTrail {
+    static let diameters: [CGFloat] = [15, 10.5, 6.5]
+    static let spacing: CGFloat = 3.5
+    static let length = diameters.reduce(spacing) { $0 + $1 + spacing }
+    /// The largest circle sits against the bubble and the smallest ends toward `pet`, the nearest point of the visible pet.
+    static func circles(bubble: CGRect, pet: CGPoint, below: Bool) -> [CGRect] {
+        let edge = below ? bubble.maxY : bubble.minY, direction: CGFloat = below ? 1 : -1
+        let start = min(max(pet.x, bubble.minX + 24), bubble.maxX - 24)
+        let reach = max(length, abs(pet.y - edge))
+        var travelled = spacing
+        return diameters.map { diameter in
+            let along = travelled + diameter / 2
+            travelled += diameter + spacing
+            return CGRect(x: start + (pet.x - start) * along / reach - diameter / 2, y: edge + direction * along - diameter / 2,
+                          width: diameter, height: diameter)
+        }
+    }
+}
+
 /// The message surface is measured in screen points, independently of the sprite scale.
 struct PetLayout {
     static let bubbleSize = CGSize(width: 330, height: 56)
+    /// The pet as drawn inside its 192×208 cell, from the cell's top-left corner.
+    static let visiblePet = CGRect(x: 54, y: 60, width: 118, height: 134)
     let scale: CGFloat
     var spriteSize: CGSize { CGSize(width: 192 * scale, height: 208 * scale) }
+    /// The bubble keeps room for the thought trail; the cell's empty margin around the pet counts toward it.
+    static func gap(scale: CGFloat, below: Bool = false) -> CGFloat {
+        max(8, ThoughtTrail.length - (below ? 208 - visiblePet.maxY : visiblePet.minY) * scale)
+    }
+    /// Where the trail ends: the top of the pet's head, or its feet when the bubble is below. AppKit coordinates.
+    static func trailEnd(sprite: CGRect, below: Bool) -> CGPoint {
+        let unit = sprite.height / 208
+        return CGPoint(x: sprite.minX + visiblePet.midX * unit, y: sprite.maxY - (below ? visiblePet.maxY : visiblePet.minY) * unit)
+    }
     var windowSize: CGSize {
         CGSize(width: max(Self.bubbleSize.width, spriteSize.width) + 24,
-               height: spriteSize.height + Self.bubbleSize.height + 32)
+               height: spriteSize.height + Self.bubbleSize.height + 24 + Self.gap(scale: scale))
     }
     var spriteRect: CGRect {
         CGRect(x: (windowSize.width - spriteSize.width) / 2, y: 12,
                width: spriteSize.width, height: spriteSize.height)
     }
     var bubbleRect: CGRect {
-        CGRect(x: (windowSize.width - Self.bubbleSize.width) / 2, y: spriteRect.maxY + 8,
+        CGRect(x: (windowSize.width - Self.bubbleSize.width) / 2, y: spriteRect.maxY + Self.gap(scale: scale),
                width: Self.bubbleSize.width, height: Self.bubbleSize.height)
     }
 }
@@ -43,10 +74,11 @@ struct PetPlacement {
                             y: min(max(spriteOrigin.y, safe.minY), max(safe.minY, safe.maxY - size.height)),
                             width: size.width, height: size.height)
         let bubbleSize = PetLayout.bubbleSize
-        bubbleBelow = sprite.maxY + 8 + bubbleSize.height > safe.maxY
-        if bubbleBelow { sprite.origin.y = max(sprite.minY, safe.minY + 8 + bubbleSize.height) }
+        bubbleBelow = sprite.maxY + PetLayout.gap(scale: scale) + bubbleSize.height > safe.maxY
+        let gap = PetLayout.gap(scale: scale, below: bubbleBelow)
+        if bubbleBelow { sprite.origin.y = max(sprite.minY, safe.minY + gap + bubbleSize.height) }
         let bubble = CGRect(x: min(max(sprite.midX - bubbleSize.width / 2, safe.minX), max(safe.minX, safe.maxX - bubbleSize.width)),
-                            y: bubbleBelow ? sprite.minY - 8 - bubbleSize.height : sprite.maxY + 8,
+                            y: bubbleBelow ? sprite.minY - gap - bubbleSize.height : sprite.maxY + gap,
                             width: bubbleSize.width, height: bubbleSize.height)
         windowFrame = sprite.union(bubble).insetBy(dx: -12, dy: -12)
         spriteRect = sprite.offsetBy(dx: -windowFrame.minX, dy: -windowFrame.minY)
