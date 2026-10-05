@@ -63,6 +63,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         pet.onMoved = { [weak self] in self?.constrainPosition(); self?.savePosition() }
         pet.onDragMove = { [weak self] origin in self?.placePet(at: origin) }
         pet.onAnimationTick = { [weak self] in self?.advancePlacement() }
+        pet.onDozeChanged = { [weak self] in self?.updatePet() }
         buildMenu()
         pet.onMenu = { [weak self] event in guard let self else { return }; NSMenu.popUpContextMenu(self.menu, with: event, for: self.pet) }
         model.onSelect = { [weak self] id in self?.model.selectedID = id; self?.updatePet() }
@@ -79,6 +80,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         if let index = CommandLine.arguments.firstIndex(of: "--ui-smoke"), CommandLine.arguments.count > index + 1 {
             let destination = URL(fileURLWithPath: CommandLine.arguments[index + 1])
             showDashboard()
+            if let flag = CommandLine.arguments.firstIndex(of: "--ui-smoke-row"), CommandLine.arguments.count > flag + 1 {
+                pet.previewRow = Int(CommandLine.arguments[flag + 1])
+            }
             DispatchQueue.main.asyncAfter(deadline: .now() + 3) { [weak self] in
                 self?.capture(destination: destination)
                 NSApp.terminate(nil)
@@ -132,7 +136,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         } else {
             pet.state = .idle
             let unknown = model.tasks.contains { $0.state == .unknown }
-            pet.headline = unknown ? "상태를 확인할 작업이 있어요" : model.identity.idleHeadline
+            pet.headline = unknown ? "상태를 확인할 작업이 있어요" : pet.isDozing ? model.identity.dozeHeadline : model.identity.idleHeadline
             pet.subtitle = "Codex · Claude Code"
         }
     }
@@ -308,16 +312,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     @objc func screensChanged() { constrainPosition() }
     @objc func preview() {
         previewTimer?.invalidate(); isPreview = true; pet.previewLook = false
-        let names = ["쉬는 중", "오른쪽 이동", "왼쪽 이동", "손 흔들기", "점프", "오류", "확인 대기", "작업 중", "검토", "방향 보기 1", "방향 보기 2"]
-        var row = 0
-        pet.previewRow = row; pet.headline = "미리보기 · \(names[row])"; updatePreviewSubtitle()
-        previewTimer = Timer.scheduledTimer(withTimeInterval: 2, repeats: true) { [weak self] timer in
-            guard let self else { timer.invalidate(); return }; row += 1
-            if row >= names.count {
-                timer.invalidate(); self.isPreview = false; self.pet.previewRow = nil; self.updatePet(); return
-            }
-            self.pet.previewRow = row; self.pet.headline = "미리보기 · \(names[row])"
+        let names = ["쉬는 중", "오른쪽 이동", "왼쪽 이동", "손 흔들기", "점프", "오류", "확인 대기", "작업 중", "검토", "방향 보기 1", "방향 보기 2", "조는 중"]
+        updatePreviewSubtitle()
+        func show(_ row: Int) {
+            guard row < names.count else { isPreview = false; pet.previewRow = nil; updatePet(); return }
+            pet.previewRow = row; pet.headline = "미리보기 · \(names[row])"
+            // Nodding off takes longer than the others to play through once.
+            let seconds = row == PetAnimationTimeline.dozeRow ? PetAnimationTimeline.dozeCycle : 2
+            previewTimer = Timer.scheduledTimer(withTimeInterval: seconds, repeats: false) { _ in show(row + 1) }
         }
+        show(0)
     }
     @objc func previewPointer() {
         previewTimer?.invalidate(); isPreview = true; pet.previewRow = nil; pet.previewLook = true

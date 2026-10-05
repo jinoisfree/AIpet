@@ -2,22 +2,29 @@ import AppKit
 import QuartzCore
 
 final class SpriteAtlas {
-    let counts = [7, 8, 8, 4, 5, 8, 6, 6, 6, 8, 8]
+    /// The sheet's eleven rows, then nodding off, which replays these frames of the 오류 row.
+    let counts = [7, 8, 8, 4, 5, 8, 6, 6, 6, 8, 8, 6]
+    private static let dozeSource = [1, 2, 3, 3, 3, 2]
     private var frames: [[NSImage]] = []
     private var presentations: [[PetSpritePresentation]] = []
     private var interactionBounds = CGRect.zero
-    init() throws {
-        guard let url = Bundle.main.url(forResource: "spritesheet", withExtension: "png", subdirectory: "Pet"),
+    private static func sheet(_ name: String, width: Int, height: Int) -> CGImage? {
+        guard let url = Bundle.main.url(forResource: name, withExtension: "png", subdirectory: "Pet"),
               let source = CGImageSourceCreateWithURL(url as CFURL, nil),
-              let atlas = CGImageSourceCreateImageAtIndex(source, 0, nil),
-              atlas.width == 1536, atlas.height == 2288 else {
+              let image = CGImageSourceCreateImageAtIndex(source, 0, nil), image.width == width, image.height == height else { return nil }
+        return image
+    }
+    init() throws {
+        guard let atlas = Self.sheet("spritesheet", width: 1536, height: 2288), let wave = Self.sheet("wave", width: 768, height: 208) else {
             throw NSError(domain: "Taesik", code: 1, userInfo: [NSLocalizedDescriptionKey: "펫 이미지 파일을 읽을 수 없습니다."])
         }
         var metrics: [[SpriteContentMetrics]] = []
-        for (row, count) in counts.enumerated() {
+        for (row, count) in counts.enumerated() where row < PetAnimationTimeline.dozeRow {
             var images: [NSImage] = [], content: [SpriteContentMetrics] = []
             for column in 0..<count {
-                guard let cell = atlas.cropping(to: CGRect(x: column * 192, y: row * 208, width: 192, height: 208)),
+                // The wave is drawn from its own slimmer art instead of the sheet's.
+                let waving = row == PetAnimation.waving.rawValue
+                guard let cell = (waving ? wave : atlas).cropping(to: CGRect(x: column * 192, y: waving ? 0 : row * 208, width: 192, height: 208)),
                       let measured = SpriteContentMetrics.measure(cell) else {
                     throw NSError(domain: "Taesik", code: 2, userInfo: [NSLocalizedDescriptionKey: "펫 동작 이미지를 읽을 수 없습니다."])
                 }
@@ -26,12 +33,17 @@ final class SpriteAtlas {
             }
             frames.append(images); metrics.append(content)
         }
+        let failed = PetAnimation.failed.rawValue
+        frames.append(Self.dozeSource.map { frames[failed][$0] }); metrics.append(Self.dozeSource.map { metrics[failed][$0] })
         // The smaller, front-facing look pose from the user's comparison remains unchanged.
         let reference = metrics[10][7]
         interactionBounds = reference.bounds
+        // Waving and nodding off are drawn at the idle pose's size, so the cat does not swell beside it.
+        let idleScale = PetSpritePresentation.matching(metrics[0][0], to: reference).scale
         for (row, content) in metrics.enumerated() {
+            let fixed = row == PetAnimation.waving.rawValue || row == PetAnimationTimeline.dozeRow ? idleScale : nil
             presentations.append(content.map { metric in
-                PetSpritePresentation.matching(row >= 9 ? metric : content[0], to: reference)
+                PetSpritePresentation.matching((9...10).contains(row) ? metric : content[0], to: reference, scale: fixed)
             })
         }
     }
@@ -122,7 +134,7 @@ final class PetView: NSView {
     var onDragMove: ((NSPoint) -> Void)?
     var onAnimationTick: (() -> Void)?
     var isPaused = false { didSet {
-        animationStarted = ProcessInfo.processInfo.systemUptime; pointerInteraction.reset()
+        animationStarted = ProcessInfo.processInfo.systemUptime; pointerInteraction.reset(); doze = PetDoze()
         bubbleText.setPulseAllowed(!isPaused && !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion)
     } }
     var screenFocus: ScreenFocus?
@@ -136,6 +148,11 @@ final class PetView: NSView {
     private let windowResolver = ScreenWindowResolver()
     private var spriteTracking: NSTrackingArea?
     private var wasLooking = false
+    private var doze = PetDoze()
+    /// The pet has nodded off; the bubble says so.
+    private(set) var isDozing = false
+    var onDozeChanged: (() -> Void)?
+    private let dozeDelay: TimeInterval = CommandLine.arguments.contains("--ui-smoke-doze") ? 1 : PetDoze.delay
     private var dragStart: NSPoint?
     private var windowStart: NSPoint?
     private var didDrag = false
@@ -221,7 +238,10 @@ final class PetView: NSView {
                                                loop: didDrag || previewRow != nil)
         var behavior = animation.name
         var looking = false
-        if let row = previewRow, row >= 9 {
+        if previewRow == PetAnimationTimeline.dozeRow {
+            frame = PetAnimationTimeline.dozeFrame(elapsed: now - animationStarted, reducedMotion: reduced)
+            behavior = "조는 중 미리보기"
+        } else if let row = previewRow, row >= 9 {
             frame = PetAnimationFrame(row: row, column: Int((now - animationStarted) / 0.25) % 8)
             behavior = "시선 미리보기"
         } else if previewRow == nil, !didDrag {
@@ -246,6 +266,14 @@ final class PetView: NSView {
         }
         if wasLooking && !looking { animationStarted = now }
         wasLooking = looking
+        // Left alone with nothing to do, look at or react to, the pet nods off.
+        let quiet = animation == .idle && previewRow == nil && !previewLook && !looking && pointer == .inactive
+        let dozing = doze.update(now: now, quiet: quiet, after: dozeDelay)
+        if let dozing {
+            frame = PetAnimationTimeline.dozeFrame(elapsed: dozing, reducedMotion: reduced)
+            behavior = "조는 중"
+        } else if isDozing { animationStarted = now }
+        if isDozing != (dozing != nil) { isDozing = dozing != nil; onDozeChanged?() }
         if displayedFrame != frame { displayedFrame = frame; needsDisplay = true }
         let side = placement?.bubbleBelow == true ? "아래" : "위"
         setAccessibilityHelp("클릭: 작업 목록 · 드래그: 이동 · 오른쪽 클릭: 메뉴 · 동작: \(behavior) · 행 \(frame.row), 프레임 \(frame.column) · 말풍선: \(side)")
@@ -254,6 +282,22 @@ final class PetView: NSView {
         NSColor.clear.setFill(); bounds.fill(using: .copy)
         let rect = atlas.drawingRect(row: displayedFrame.row, frame: displayedFrame.column, in: spriteRect)
         atlas.image(row: displayedFrame.row, frame: displayedFrame.column).draw(in: rect, from: .zero, operation: .sourceOver, fraction: 1)
+        if displayedFrame.row == PetAnimationTimeline.dozeRow { drawZs(PetAnimationTimeline.dozeZs(column: displayedFrame.column)) }
+    }
+    /// Each z is written white with a dark edge, like the pet's own outline, in the square it is given.
+    private func drawZs(_ squares: [CGRect]) {
+        let cell = spriteRect, unit = cell.width / PetSpritePresentation.cellSize.width
+        for square in squares {
+            let left = cell.minX + square.minX * unit, right = cell.minX + square.maxX * unit
+            let top = cell.maxY - square.minY * unit, bottom = cell.maxY - square.maxY * unit
+            let z = NSBezierPath()
+            z.move(to: NSPoint(x: left, y: top)); z.line(to: NSPoint(x: right, y: top))
+            z.line(to: NSPoint(x: left, y: bottom)); z.line(to: NSPoint(x: right, y: bottom))
+            z.lineCapStyle = .round; z.lineJoinStyle = .round
+            for (width, color) in [(4.0, NSColor(red: 16/255, green: 12/255, blue: 12/255, alpha: 1)), (1.9, NSColor.white)] {
+                color.setStroke(); z.lineWidth = width * unit; z.stroke()
+            }
+        }
     }
     override func mouseDown(with event: NSEvent) {
         dragStart = window?.convertPoint(toScreen: event.locationInWindow); previousDragMouse = dragStart

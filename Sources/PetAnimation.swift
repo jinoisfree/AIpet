@@ -67,4 +67,42 @@ enum PetAnimationTimeline {
     static func dragAnimation(horizontalDelta: CGFloat, previous: PetAnimation = .right) -> PetAnimation {
         abs(horizontalDelta) < 0.5 ? previous : horizontalDelta < 0 ? .left : .right
     }
+
+    /// Nodding off replays three frames of the 오류 row: eyes open, one closing, the head down while the z's gather,
+    /// then a start awake.
+    static let dozeRow = 11
+    private static let dozeDurations: [Double] = [0.900, 0.450, 0.400, 0.400, 0.500, 0.150]
+    static let dozeCycle = dozeDurations.reduce(0, +)
+    static func dozeFrame(elapsed: TimeInterval, reducedMotion: Bool = false) -> PetAnimationFrame {
+        // With motion turned down the pet simply sleeps.
+        if reducedMotion { return PetAnimationFrame(row: dozeRow, column: 4) }
+        var remaining = max(0, elapsed.isFinite ? elapsed : 0).truncatingRemainder(dividingBy: dozeCycle)
+        for (column, duration) in dozeDurations.enumerated() {
+            if remaining < duration { return PetAnimationFrame(row: dozeRow, column: column) }
+            remaining -= duration
+        }
+        return PetAnimationFrame(row: dozeRow, column: dozeDurations.count - 1)
+    }
+    /// The z's over a doze frame, each as the square it is written in, measured in the sprite cell from its top-left corner.
+    static func dozeZs(column: Int) -> [CGRect] {
+        guard (0..<6).contains(column) else { return [] }
+        let start = column == 1 ? CGPoint(x: 133, y: 62) : CGPoint(x: 131, y: 74)
+        return (0..<[0, 1, 1, 2, 3, 0][column]).map { index in
+            let size: CGFloat = [6, 8, 10.5][index]
+            return CGRect(x: start.x + [0, 9.5, 21.5][index], y: start.y - [0, 12.5, 27.5][index], width: size, height: size)
+        }
+    }
+}
+
+/// The pet nods off once nothing has happened for a while, and anything happening wakes it.
+struct PetDoze {
+    static let delay: TimeInterval = 180
+    private var quietSince: TimeInterval?
+    /// `quiet` means the pet is idle with nothing to look at or react to. Returns how long it has been dozing.
+    mutating func update(now: TimeInterval, quiet: Bool, after delay: TimeInterval = PetDoze.delay) -> TimeInterval? {
+        guard quiet else { quietSince = nil; return nil }
+        let since = quietSince ?? now
+        quietSince = since
+        return now - since >= delay ? now - since - delay : nil
+    }
 }

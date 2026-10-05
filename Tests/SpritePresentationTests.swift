@@ -19,10 +19,31 @@ struct SpritePresentationTests {
         precondition(reference.bounds == CGRect(x: 54, y: 60, width: 118, height: 134), "pixel orientation and source reference")
         let referenceTransform = PetSpritePresentation.matching(reference, to: reference)
         precondition(referenceTransform.scale == 1 && referenceTransform.offset == .zero, "smaller reference must remain unchanged")
+        // What the app draws: the wave from its own slimmer art, and nodding off from three frames of the 오류 row.
+        let sheetWave = metrics[3][0]
+        let waveSource = CGImageSourceCreateWithURL(URL(fileURLWithPath: CommandLine.arguments[3]) as CFURL, nil)!
+        let waveArt = CGImageSourceCreateImageAtIndex(waveSource, 0, nil)!
+        precondition(waveArt.width == 768 && waveArt.height == 208, "four wave frames")
+        images[3] = (0..<4).map { waveArt.cropping(to: CGRect(x: $0 * 192, y: 0, width: 192, height: 208))! }
+        metrics[3] = images[3].map { SpriteContentMetrics.measure($0)! }
+        images.append([1, 2, 3, 3, 3, 2].map { images[5][$0] }); metrics.append([1, 2, 3, 3, 3, 2].map { metrics[5][$0] })
+        let idleScale = PetSpritePresentation.matching(metrics[0][0], to: reference).scale
         var transforms: [[PetSpritePresentation]] = []
         for (row, content) in metrics.enumerated() {
-            transforms.append(content.map { PetSpritePresentation.matching(row >= 9 ? $0 : content[0], to: reference) })
+            transforms.append(content.map { PetSpritePresentation.matching((9...10).contains(row) ? $0 : content[0], to: reference,
+                                                                           scale: row == 3 || row == 11 ? idleScale : nil) })
         }
+        let idleShown = transforms[0][0].contentBounds(metrics[0][0].bounds)
+        let sheetWaveShown = PetSpritePresentation.matching(sheetWave, to: reference).contentBounds(sheetWave.bounds)
+        precondition(sheetWaveShown.width > idleShown.width, "the sheet's own wave was drawn wider than the idle pose")
+        for (frame, metric) in metrics[3].enumerated() {
+            let shown = transforms[3][frame].contentBounds(metric.bounds)
+            precondition(transforms[3][frame].scale == idleScale && shown.width < idleShown.width, "the wave is drawn at the idle pose's size and is narrower than it")
+            precondition(shown.minY >= idleShown.minY, "the shortened arm reaches no higher than the idle pose's ear")
+        }
+        let awake = transforms[11][0].contentBounds(metrics[11][0].bounds), nodded = transforms[11][2].contentBounds(metrics[11][2].bounds)
+        precondition(transforms[11].count == 6 && transforms[11].allSatisfy { $0.scale == idleScale }, "nodding off keeps the idle pose's size")
+        precondition(abs(awake.maxY - reference.bounds.maxY) < 0.01 && nodded.minY - awake.minY > 15, "the head sinks while the pet stays on the ground")
         let smaller = referenceTransform.contentBounds(reference.bounds)
         let formerlyLarge = transforms[9][0].contentBounds(metrics[9][0].bounds)
         precondition(abs(formerlyLarge.height - smaller.height) < 0.01, "reported 34% size jump removed")
@@ -79,14 +100,14 @@ struct SpritePresentationTests {
             comparison.draw(images[pose.0][pose.1], in: index < 2 ? cell : transforms[pose.0][pose.1].drawingRect(in: cell))
         }
         save(comparison, "sprite-size-comparison.png")
-        let overview = canvas(width: 1536, height: 2288)
+        let overview = canvas(width: 1536, height: 2496)
         for (row, frames) in images.enumerated() {
             for (column, image) in frames.enumerated() {
-                let cell = CGRect(x: column * 192, y: (10 - row) * 208, width: 192, height: 208)
+                let cell = CGRect(x: column * 192, y: (11 - row) * 208, width: 192, height: 208)
                 overview.draw(image, in: transforms[row][column].drawingRect(in: cell))
             }
         }
         save(overview, "sprite-size-overview.png")
-        print("PASS: 74 real frames; reference unchanged; 34% jump removed; 16-direction continuity; stable state baselines; jump/lying motion preserved; hover bounds; scale range and clipping")
+        print("PASS: 70 sheet frames, the redrawn wave and nodding off; reference unchanged; 34% jump removed; 16-direction continuity; stable state baselines; jump/lying motion preserved; hover bounds; scale range and clipping")
     }
 }

@@ -39,6 +39,27 @@ struct PetAnimationTests {
             }
         }
         precondition(!PetAnimation.waiting.allowsLook && !PetAnimation.failed.allowsLook)
-        print("PASS: 16 look directions, drag direction, original timing, idle return, reduced motion")
+        // Nodding off: only after three quiet minutes, and anything happening starts the count again.
+        var doze = PetDoze()
+        precondition(doze.update(now: 10, quiet: true) == nil && doze.update(now: 189.9, quiet: true) == nil, "3분이 되기 전에는 졸지 않는다")
+        precondition(doze.update(now: 190.5, quiet: true) == 0.5, "조용한 3분 뒤에 졸기 시작한다")
+        precondition(doze.update(now: 200, quiet: false) == nil, "무슨 일이 생기면 깬다")
+        precondition(doze.update(now: 201, quiet: true) == nil && doze.update(now: 380, quiet: true) == nil, "깬 뒤에는 3분을 다시 센다")
+        precondition(doze.update(now: 381, quiet: true) == 0)
+        precondition(doze.update(now: 500, quiet: false) == nil && doze.update(now: 501, quiet: true, after: 1) == nil)
+        precondition(doze.update(now: 503, quiet: true, after: 1) == 1, "확인용으로 기다림을 줄일 수 있다")
+        let columns = [0, 0.89, 0.91, 1.36, 1.76, 2.16, 2.66, 2.79, 2.81].map { PetAnimationTimeline.dozeFrame(elapsed: $0).column }
+        precondition(columns == [0, 0, 1, 2, 3, 4, 5, 5, 0], "눈 뜸, 감김, 고개 떨굼, 번쩍, 다시 처음")
+        precondition(abs(PetAnimationTimeline.dozeCycle - 2.8) < 0.0001)
+        precondition(PetAnimationTimeline.dozeFrame(elapsed: 100).row == PetAnimationTimeline.dozeRow)
+        precondition(PetAnimationTimeline.dozeFrame(elapsed: 0.3, reducedMotion: true) == PetAnimationFrame(row: 11, column: 4), "동작 줄이기에서는 잠든 한 장면")
+        precondition((0..<6).map { PetAnimationTimeline.dozeZs(column: $0).count } == [0, 1, 1, 2, 3, 0], "고개를 떨군 동안 z가 하나씩 는다")
+        for column in 0..<6 {
+            let zs = PetAnimationTimeline.dozeZs(column: column)
+            precondition(zs.allSatisfy { CGRect(x: 2, y: 2, width: 188, height: 204).contains($0) }, "z는 펫의 칸 안에 그린다")
+            precondition(zip(zs, zs.dropFirst()).allSatisfy { $1.width > $0.width && $1.minY < $0.minY && $1.minX > $0.maxX }, "위로 갈수록 커진다")
+        }
+        precondition(PetAnimationTimeline.dozeZs(column: 9).isEmpty)
+        print("PASS: 16 look directions, drag direction, original timing, idle return, reduced motion, nodding off")
     }
 }

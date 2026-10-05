@@ -36,10 +36,11 @@ struct PetSpritePresentation {
 
     /// One fixed transform per animated row preserves jumps, breathing and lying down.
     /// Look frames are separate directional poses and use their own transform.
-    static func matching(_ basis: SpriteContentMetrics, to reference: SpriteContentMetrics) -> PetSpritePresentation {
+    /// A row given a `scale` is drawn at that size instead of being fitted, standing on the same ground.
+    static func matching(_ basis: SpriteContentMetrics, to reference: SpriteContentMetrics, scale fixed: CGFloat? = nil) -> PetSpritePresentation {
         let heightRatio = reference.bounds.height / basis.bounds.height
         let areaRatio = sqrt(CGFloat(reference.opaquePixels) / CGFloat(basis.opaquePixels))
-        let scale = min(1, heightRatio, areaRatio)
+        let scale = fixed ?? min(1, heightRatio, areaRatio)
         return PetSpritePresentation(scale: scale,
                                      offset: CGPoint(x: reference.bounds.midX - basis.bounds.midX * scale,
                                                      y: reference.bounds.maxY - basis.bounds.maxY * scale))
