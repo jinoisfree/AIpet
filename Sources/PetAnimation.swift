@@ -68,26 +68,29 @@ enum PetAnimationTimeline {
         abs(horizontalDelta) < 0.5 ? previous : horizontalDelta < 0 ? .left : .right
     }
 
-    /// Nodding off replays three frames of the 오류 row: eyes open, one closing, the head down while the z's gather,
-    /// then a start awake.
+    /// Nodding off is the idle pose with only its head changing: eyes open, one closing, then both shut while the head
+    /// nods forward three times and a z rises with each, then a start awake.
     static let dozeRow = 11
-    private static let dozeDurations: [Double] = [0.900, 0.450, 0.400, 0.400, 0.500, 0.150]
-    static let dozeCycle = dozeDurations.reduce(0, +)
+    /// Which drawing each step shows (0 eyes open, 1 one shut, 2 both shut, 3 and 4 the head lower and lowest), for how long, with how many z's.
+    static let dozeSteps: [(image: Int, seconds: Double, zs: Int)] =
+        [(0, 0.900, 0), (1, 0.450, 0)] + (1...3).flatMap { [(2, 0.600, $0), (3, 0.200, $0), (4, 0.440, $0), (3, 0.200, $0)] } + [(1, 0.150, 0)]
+    static let dozeCycle = dozeSteps.reduce(0) { $0 + $1.seconds }
+    /// With motion turned down the pet simply sleeps: the last step with its head up and all three z's.
+    static let dozeStill = dozeSteps.lastIndex { $0.image == 2 } ?? 0
     static func dozeFrame(elapsed: TimeInterval, reducedMotion: Bool = false) -> PetAnimationFrame {
-        // With motion turned down the pet simply sleeps.
-        if reducedMotion { return PetAnimationFrame(row: dozeRow, column: 4) }
+        if reducedMotion { return PetAnimationFrame(row: dozeRow, column: dozeStill) }
         var remaining = max(0, elapsed.isFinite ? elapsed : 0).truncatingRemainder(dividingBy: dozeCycle)
-        for (column, duration) in dozeDurations.enumerated() {
-            if remaining < duration { return PetAnimationFrame(row: dozeRow, column: column) }
-            remaining -= duration
+        for (column, step) in dozeSteps.enumerated() {
+            if remaining < step.seconds { return PetAnimationFrame(row: dozeRow, column: column) }
+            remaining -= step.seconds
         }
-        return PetAnimationFrame(row: dozeRow, column: dozeDurations.count - 1)
+        return PetAnimationFrame(row: dozeRow, column: dozeSteps.count - 1)
     }
     /// The z's over a doze frame, each as the square it is written in, measured in the sprite cell from its top-left corner.
     static func dozeZs(column: Int) -> [CGRect] {
-        guard (0..<6).contains(column) else { return [] }
-        let start = column == 1 ? CGPoint(x: 133, y: 62) : CGPoint(x: 131, y: 74)
-        return (0..<[0, 1, 1, 2, 3, 0][column]).map { index in
+        guard dozeSteps.indices.contains(column) else { return [] }
+        let start = CGPoint(x: 132, y: 56)
+        return (0..<dozeSteps[column].zs).map { index in
             let size: CGFloat = [6, 8, 10.5][index]
             return CGRect(x: start.x + [0, 9.5, 21.5][index], y: start.y - [0, 12.5, 27.5][index], width: size, height: size)
         }

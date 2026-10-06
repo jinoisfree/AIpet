@@ -2,9 +2,8 @@ import AppKit
 import QuartzCore
 
 final class SpriteAtlas {
-    /// The sheet's eleven rows, then nodding off, which replays these frames of the 오류 row.
-    let counts = [7, 8, 8, 4, 5, 8, 6, 6, 6, 8, 8, 6]
-    private static let dozeSource = [1, 2, 3, 3, 3, 2]
+    /// The sheet's eleven rows, then the steps of nodding off.
+    let counts = [7, 8, 8, 4, 5, 8, 6, 6, 6, 8, 8, PetAnimationTimeline.dozeSteps.count]
     private var frames: [[NSImage]] = []
     private var presentations: [[PetSpritePresentation]] = []
     private var interactionBounds = CGRect.zero
@@ -15,7 +14,8 @@ final class SpriteAtlas {
         return image
     }
     init() throws {
-        guard let atlas = Self.sheet("spritesheet", width: 1536, height: 2288), let wave = Self.sheet("wave", width: 768, height: 208) else {
+        guard let atlas = Self.sheet("spritesheet", width: 1536, height: 2288), let wave = Self.sheet("wave", width: 768, height: 208),
+              let asleep = Self.sheet("doze", width: 768, height: 208) else {
             throw NSError(domain: "Taesik", code: 1, userInfo: [NSLocalizedDescriptionKey: "펫 이미지 파일을 읽을 수 없습니다."])
         }
         var metrics: [[SpriteContentMetrics]] = []
@@ -33,15 +33,18 @@ final class SpriteAtlas {
             }
             frames.append(images); metrics.append(content)
         }
-        let failed = PetAnimation.failed.rawValue
-        frames.append(Self.dozeSource.map { frames[failed][$0] }); metrics.append(Self.dozeSource.map { metrics[failed][$0] })
+        // Only the head changes while it dozes: the idle frame, one eye shut, then both and the head nodding.
+        let drawings = [frames[0][0]] + (0..<4).compactMap { asleep.cropping(to: CGRect(x: $0 * 192, y: 0, width: 192, height: 208)) }
+            .map { NSImage(cgImage: $0, size: NSSize(width: 192, height: 208)) }
+        frames.append(PetAnimationTimeline.dozeSteps.map { drawings[$0.image] })
+        metrics.append(Array(repeating: metrics[0][0], count: PetAnimationTimeline.dozeSteps.count))
         // The smaller, front-facing look pose from the user's comparison remains unchanged.
         let reference = metrics[10][7]
         interactionBounds = reference.bounds
-        // Waving and nodding off are drawn at the idle pose's size, so the cat does not swell beside it.
+        // Waving is drawn at the idle pose's size, so the cat does not swell beside it.
         let idleScale = PetSpritePresentation.matching(metrics[0][0], to: reference).scale
         for (row, content) in metrics.enumerated() {
-            let fixed = row == PetAnimation.waving.rawValue || row == PetAnimationTimeline.dozeRow ? idleScale : nil
+            let fixed = row == PetAnimation.waving.rawValue ? idleScale : nil
             presentations.append(content.map { metric in
                 PetSpritePresentation.matching((9...10).contains(row) ? metric : content[0], to: reference, scale: fixed)
             })

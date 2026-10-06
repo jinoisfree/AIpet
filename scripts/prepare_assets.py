@@ -11,6 +11,8 @@ OUTPUT = ROOT / '.build' / 'assets'
 EXPECTED = '316b98b0445cdf0ac50dda91128e5772366f49787a4634addbfb1409c99dca35'
 # The slimmer wave drawn by draw_wave.py, pinned by its pixels so that only an intended redraw changes it.
 WAVE = 'b0beffe97a9e093f92a56009ec341c924b9e4e49c36f8ff295e0ef4a7a9ea1ba'
+# The idle pose asleep and nodding, drawn by draw_doze.py and pinned the same way.
+DOZE = '9e5073f5811656ebdaba62eaedc6d060006092cfca4ca8239f401575f0a2bf99'
 
 def prepare():
     source = PET / 'spritesheet.webp'
@@ -18,6 +20,8 @@ def prepare():
     assert json.loads((PET / 'pet.json').read_text())['spriteVersionNumber'] == 2
     wave = Image.open(PET / 'wave.png').convert('RGBA')
     assert wave.size == (768, 208) and hashlib.sha256(wave.tobytes()).hexdigest() == WAVE, 'Wave art changed'
+    doze = Image.open(PET / 'doze.png').convert('RGBA')
+    assert doze.size == (768, 208) and hashlib.sha256(doze.tobytes()).hexdigest() == DOZE, 'Doze art changed'
     atlas = Image.open(source).convert('RGBA')
     assert atlas.size == (1536, 2288)
     OUTPUT.mkdir(parents=True, exist_ok=True)
