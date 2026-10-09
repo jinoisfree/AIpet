@@ -47,6 +47,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     var bubbleAlert: String?, shownBubbleAlert: String?
     var bubbleMotion = PetBubbleMotion()
     var placementTarget: PetPlacement?
+    var placementScreen: NSScreen?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         if NSRunningApplication.runningApplications(withBundleIdentifier: "com.jinoisfree.taesik").filter({ $0.processIdentifier != ProcessInfo.processInfo.processIdentifier }).count > 0 && !CommandLine.arguments.contains("--ui-smoke") {
@@ -270,7 +271,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         let visible = PetLayout.visibleSprite(in: previous)
         pet.petScale = scale
         let next = PetLayout.visibleSprite(in: CGRect(origin: .zero, size: PetLayout(scale: scale).spriteSize))
-        placePet(at: NSPoint(x: visible.midX - next.midX, y: visible.minY - next.minY))
+        let atTop = placementScreen.map { abs(visible.maxY - $0.frame.maxY) < 0.001 } ?? false
+        placePet(at: NSPoint(x: visible.midX - next.midX, y: atTop ? visible.maxY - next.maxY : visible.minY - next.minY))
         sizeSlider?.doubleValue = percent; sizeValueLabel?.stringValue = "\(Int(percent))%"
         UserDefaults.standard.set(percent, forKey: "petScale")
         constrainPosition(); savePosition()
@@ -309,18 +311,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             return distance(a.frame) < distance(b.frame)
         }
         guard let screen else { return }
-        let placement = PetPlacement(spriteOrigin: origin, scale: pet.petScale, visibleFrame: screen.visibleFrame)
-        placementTarget = placement
+        let placement = PetPlacement(spriteOrigin: origin, scale: pet.petScale, visibleFrame: screen.visibleFrame, screenFrame: screen.frame)
+        placementTarget = placement; placementScreen = screen
         bubbleMotion.retarget(placement.globalBubble.origin, visibleFrame: screen.visibleFrame,
                               now: ProcessInfo.processInfo.systemUptime,
                               immediately: NSWorkspace.shared.accessibilityDisplayShouldReduceMotion)
         advancePlacement()
     }
     func advancePlacement() {
-        guard let target = placementTarget else { return }
+        guard let target = placementTarget, let screen = placementScreen else { return }
         let origin = bubbleMotion.step(now: ProcessInfo.processInfo.systemUptime)
         let placement = PetPlacement(globalSprite: target.globalSprite,
                                      globalBubble: NSRect(origin: origin, size: PetLayout.bubbleSize))
+        let level: NSWindow.Level = PetLayout.visibleSprite(in: placement.globalSprite).maxY > screen.visibleFrame.maxY
+            ? NSWindow.Level(rawValue: NSWindow.Level.mainMenu.rawValue + 1) : .floating
+        if panel.level != level { panel.level = level }
         guard pet.placement?.windowFrame != placement.windowFrame || pet.placement?.bubbleRect != placement.bubbleRect || pet.placement?.spriteRect != placement.spriteRect else { return }
         pet.placement = placement
         panel.setFrame(placement.windowFrame, display: false)

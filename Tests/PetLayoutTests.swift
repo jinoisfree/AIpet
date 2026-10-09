@@ -53,6 +53,38 @@ struct PetLayoutTests {
                 }
             }
         }
+        for (screen, full) in [(CGRect(x: 0, y: 0, width: 1512, height: 944), CGRect(x: 0, y: 0, width: 1512, height: 982)),
+                               (CGRect(x: -1920, y: -250, width: 1920, height: 1026), CGRect(x: -1920, y: -250, width: 1920, height: 1080)),
+                               (CGRect(x: 0, y: 0, width: 1440, height: 900), CGRect(x: 0, y: 0, width: 1440, height: 900))] {
+            for scale in [0.25, 0.5, 1, 2] {
+                for x in [screen.minX - 1000, screen.midX, screen.maxX + 1000] {
+                    for y in [screen.minY - 1000, full.maxY + 1000] {
+                        let placement = PetPlacement(spriteOrigin: CGPoint(x: x, y: y), scale: scale, visibleFrame: screen, screenFrame: full)
+                        let visible = PetLayout.visibleSprite(in: placement.globalSprite), bubble = placement.globalBubble
+                        precondition(visible.minX >= screen.minX + 4 && visible.maxX <= screen.maxX - 4 && visible.minY >= screen.minY + 4)
+                        precondition(visible.maxY <= full.maxY + 0.001, "위쪽은 전체 화면 안")
+                        if x < screen.minX { precondition(abs(visible.minX - screen.minX - 4) < 0.001) }
+                        if x > screen.maxX { precondition(abs(visible.maxX - screen.maxX + 4) < 0.001) }
+                        if y < screen.minY { precondition(abs(visible.minY - screen.minY - 4) < 0.001) }
+                        else {
+                            precondition(abs(visible.maxY - full.maxY) < 0.001 && placement.bubbleBelow, "화면 맨 위에서는 여백 없이, 말풍선은 아래")
+                            let legacy = PetPlacement(spriteOrigin: CGPoint(x: x, y: y), scale: scale, visibleFrame: screen)
+                            precondition(abs(PetLayout.visibleSprite(in: legacy.globalSprite).maxY - screen.maxY + 4) < 0.001, "전체 화면 미지정 시 기존 위쪽 4pt")
+                        }
+                        precondition(screen.insetBy(dx: 12, dy: 12).contains(bubble) && !visible.intersects(bubble), "말풍선은 메뉴 막대 아래 12pt, 그림과 겹치지 않음")
+                        let below = placement.bubbleBelow
+                        let end = PetLayout.trailEnd(sprite: placement.globalSprite, below: below)
+                        let circles = ThoughtTrail.circles(bubble: bubble, pet: end, below: below)
+                        precondition(circles.allSatisfy { placement.windowFrame.contains($0) && !$0.intersects(bubble) && !$0.intersects(visible) }, "방울은 창 안, 말풍선과 그림 밖")
+                        precondition(circles.allSatisfy { below ? $0.minY > bubble.maxY && $0.maxY <= end.y + 0.001 : $0.maxY < bubble.minY && $0.minY >= end.y - 0.001 }, "방울은 말풍선과 펫 사이")
+                        precondition(zip(circles, circles.dropFirst()).allSatisfy { !$0.intersects($1) }, "방울끼리 겹치지 않음")
+                        let restored = PetPlacement(spriteOrigin: placement.globalSprite.origin, scale: scale, visibleFrame: screen, screenFrame: full)
+                        precondition(restored.globalSprite == placement.globalSprite && restored.globalBubble == bubble, "맨 위에서도 저장 위치 복원 불변")
+                    }
+                }
+            }
+        }
+        print("PASS: full-screen top, menu-bar bubble bounds, negative display coordinates, no-menu display, restored anchors, legacy top margin")
         let left = PetPlacement(spriteOrigin: .zero, scale: 0.25, visibleFrame: CGRect(x: 0, y: 0, width: 1000, height: 800))
         precondition(left.globalSprite.minX == 0 && left.globalBubble.minX == 12, "그림은 허용된 위치를 유지하고 말풍선만 화면 안으로 이동")
         let top = PetPlacement(spriteOrigin: CGPoint(x: 988, y: 790), scale: 0.25, visibleFrame: CGRect(x: 0, y: 0, width: 1000, height: 800))

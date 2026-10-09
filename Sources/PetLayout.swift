@@ -33,10 +33,10 @@ struct PetLayout {
         return CGRect(x: cell.minX + visiblePet.minX * unit, y: cell.maxY - visiblePet.maxY * unit,
                       width: visiblePet.width * unit, height: visiblePet.height * unit)
     }
-    static func constrainedSprite(_ sprite: CGRect, screen: CGRect) -> CGRect {
+    static func constrainedSprite(_ sprite: CGRect, screen: CGRect, screenFrame: CGRect? = nil) -> CGRect {
         let safe = screen.insetBy(dx: petMargin, dy: petMargin), visible = visibleSprite(in: sprite)
         let x = min(max(visible.minX, safe.minX), max(safe.minX, safe.maxX - visible.width))
-        let y = min(max(visible.minY, safe.minY), max(safe.minY, safe.maxY - visible.height))
+        let y = min(max(visible.minY, safe.minY), max(safe.minY, (screenFrame?.maxY ?? safe.maxY) - visible.height))
         return sprite.offsetBy(dx: x - visible.minX, dy: y - visible.minY)
     }
     let scale: CGFloat
@@ -80,10 +80,10 @@ struct PetPlacement {
         bubbleBelow = globalBubble.midY < globalSprite.midY
     }
 
-    init(spriteOrigin: CGPoint, scale: CGFloat, visibleFrame: CGRect) {
+    init(spriteOrigin: CGPoint, scale: CGFloat, visibleFrame: CGRect, screenFrame: CGRect? = nil) {
         let safe = visibleFrame.insetBy(dx: 12, dy: 12)
         let size = PetLayout(scale: scale).spriteSize
-        var sprite = PetLayout.constrainedSprite(CGRect(origin: spriteOrigin, size: size), screen: visibleFrame)
+        var sprite = PetLayout.constrainedSprite(CGRect(origin: spriteOrigin, size: size), screen: visibleFrame, screenFrame: screenFrame)
         let bubbleSize = PetLayout.bubbleSize
         bubbleBelow = sprite.maxY + PetLayout.gap(scale: scale) + bubbleSize.height > safe.maxY
         let gap = PetLayout.gap(scale: scale, below: bubbleBelow)
