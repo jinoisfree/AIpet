@@ -1,65 +1,16 @@
 import AppKit
 import QuartzCore
 
-final class SpriteAtlas {
-    /// The sheet's eleven rows, then the steps of nodding off.
-    let counts = [7, 8, 8, 4, 5, 8, 6, 6, 6, 8, 8, PetAnimationTimeline.dozeSteps.count]
-    private var frames: [[NSImage]] = []
-    private var presentations: [[PetSpritePresentation]] = []
-    private var interactionBounds = CGRect.zero
-    private static func sheet(_ name: String, width: Int, height: Int) -> CGImage? {
-        guard let url = Bundle.main.url(forResource: name, withExtension: "png", subdirectory: "Pet"),
-              let source = CGImageSourceCreateWithURL(url as CFURL, nil),
-              let image = CGImageSourceCreateImageAtIndex(source, 0, nil), image.width == width, image.height == height else { return nil }
-        return image
-    }
-    init() throws {
-        guard let atlas = Self.sheet("spritesheet", width: 1536, height: 2288), let wave = Self.sheet("wave", width: 768, height: 208),
-              let asleep = Self.sheet("doze", width: 768, height: 208) else {
-            throw NSError(domain: "Taesik", code: 1, userInfo: [NSLocalizedDescriptionKey: "펫 이미지 파일을 읽을 수 없습니다."])
-        }
-        var metrics: [[SpriteContentMetrics]] = []
-        for (row, count) in counts.enumerated() where row < PetAnimationTimeline.dozeRow {
-            var images: [NSImage] = [], content: [SpriteContentMetrics] = []
-            for column in 0..<count {
-                // The wave is drawn from its own slimmer art instead of the sheet's.
-                let waving = row == PetAnimation.waving.rawValue
-                guard let cell = (waving ? wave : atlas).cropping(to: CGRect(x: column * 192, y: waving ? 0 : row * 208, width: 192, height: 208)),
-                      let measured = SpriteContentMetrics.measure(cell) else {
-                    throw NSError(domain: "Taesik", code: 2, userInfo: [NSLocalizedDescriptionKey: "펫 동작 이미지를 읽을 수 없습니다."])
-                }
-                images.append(NSImage(cgImage: cell, size: NSSize(width: 192, height: 208)))
-                content.append(measured)
-            }
-            frames.append(images); metrics.append(content)
-        }
-        // Only the head changes while it dozes: the idle frame, one eye shut, then both and the head nodding.
-        let drawings = [frames[0][0]] + (0..<4).compactMap { asleep.cropping(to: CGRect(x: $0 * 192, y: 0, width: 192, height: 208)) }
-            .map { NSImage(cgImage: $0, size: NSSize(width: 192, height: 208)) }
-        frames.append(PetAnimationTimeline.dozeSteps.map { drawings[$0.image] })
-        metrics.append(Array(repeating: metrics[0][0], count: PetAnimationTimeline.dozeSteps.count))
-        // The smaller, front-facing look pose from the user's comparison remains unchanged.
-        let reference = metrics[10][7]
-        interactionBounds = reference.bounds
-        // Waving is drawn at the idle pose's size, so the cat does not swell beside it.
-        let idleScale = PetSpritePresentation.matching(metrics[0][0], to: reference).scale
-        for (row, content) in metrics.enumerated() {
-            let fixed = row == PetAnimation.waving.rawValue ? idleScale : nil
-            presentations.append(content.map { metric in
-                PetSpritePresentation.matching((9...10).contains(row) ? metric : content[0], to: reference, scale: fixed)
-            })
-        }
-    }
-    func image(row: Int, frame: Int) -> NSImage { frames[row][frame % counts[row]] }
-    func drawingRect(row: Int, frame: Int, in cell: CGRect) -> CGRect {
-        presentations[row][frame % counts[row]].drawingRect(in: cell)
-    }
-    func interactionRect(in cell: CGRect) -> CGRect {
-        PetSpritePresentation.interactionRect(for: interactionBounds, in: cell)
-    }
+final class PetSpriteView: NSView {
+    var onDraw: ((CGRect) -> Void)?
+    override var isOpaque: Bool { false }
+    override func hitTest(_ point: NSPoint) -> NSView? { nil }
+    override func viewDidChangeBackingProperties() { super.viewDidChangeBackingProperties(); needsDisplay = true }
+    override func draw(_ dirtyRect: NSRect) { onDraw?(bounds) }
 }
 
 final class PetPanel: NSPanel {
+    override func constrainFrameRect(_ frameRect: NSRect, to screen: NSScreen?) -> NSRect { frameRect }
     override var canBecomeKey: Bool { false }
     override var canBecomeMain: Bool { false }
 }
@@ -126,6 +77,13 @@ final class PetView: NSView {
     let bubbleText = BubbleTextView()
     private var bubbleSurface: NSView!
     private var trail: [NSView] = []
+    private let spriteSurface = PetSpriteView()
+    private var reveal = BubbleReveal()
+    private(set) var bubbleShown = false
+    private(set) var bubbleStowed = false
+    var bubbleAlwaysShown = false { didSet { updateBubbleShown() } }
+    var pointerLocation: () -> NSPoint = { NSEvent.mouseLocation }
+    private var hovering = false
     var placement: PetPlacement? { didSet { needsLayout = true; needsDisplay = true } }
     var spriteRect: CGRect { placement?.spriteRect ?? PetLayout(scale: petScale).spriteRect }
     var petScale: CGFloat = 1 { didSet { needsLayout = true; needsDisplay = true } }
@@ -174,6 +132,12 @@ final class PetView: NSView {
         // The trail of a thought bubble, in the same material as the bubble.
         trail = ThoughtTrail.diameters.map { Self.surface(cornerRadius: $0 / 2, content: nil) }
         trail.forEach(addSubview)
+        ([bubbleSurface!] + trail).forEach { $0.alphaValue = 0 }
+        stowBubble(true)
+        spriteSurface.wantsLayer = true
+        spriteSurface.layer?.zPosition = 1
+        spriteSurface.onDraw = { [weak self] cell in self?.drawSprite(in: cell) }
+        addSubview(spriteSurface)
         setAccessibilityElement(true)
         setAccessibilityRole(.button)
         headline = identity.greeting
@@ -212,6 +176,8 @@ final class PetView: NSView {
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
     override func layout() {
         super.layout()
+        if spriteSurface.frame.size != spriteRect.size { spriteSurface.needsDisplay = true }
+        spriteSurface.frame = spriteRect
         bubbleSurface.frame = placement?.bubbleRect ?? PetLayout(scale: petScale).bubbleRect
         let below = placement?.bubbleBelow == true
         let circles = ThoughtTrail.circles(bubble: bubbleSurface.frame, pet: PetLayout.trailEnd(sprite: spriteRect, below: below), below: below)
@@ -232,6 +198,7 @@ final class PetView: NSView {
     private func advanceAnimation() {
         guard let window, window.isVisible else { pointerInteraction.reset(); bubbleText.setPulseAllowed(false); return }
         onAnimationTick?()
+        updateBubbleShown()
         bubbleText.setPulseAllowed(!isPaused && !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion)
         guard !isPaused else { return }
         let now = ProcessInfo.processInfo.systemUptime
@@ -285,19 +252,20 @@ final class PetView: NSView {
             behavior = "조는 중"
         } else if isDozing { animationStarted = now }
         if isDozing != (dozing != nil) { isDozing = dozing != nil; onDozeChanged?() }
-        if displayedFrame != frame { displayedFrame = frame; needsDisplay = true }
+        if displayedFrame != frame { displayedFrame = frame; spriteSurface.needsDisplay = true }
         let side = placement?.bubbleBelow == true ? "아래" : "위"
-        setAccessibilityHelp("클릭: 작업 목록 · 드래그: 이동 · 오른쪽 클릭: 메뉴 · 동작: \(behavior) · 행 \(frame.row), 프레임 \(frame.column) · 말풍선: \(side)")
+        setAccessibilityHelp("클릭: 작업 목록 · 드래그: 이동 · 오른쪽 클릭: 메뉴 · 동작: \(behavior) · 행 \(frame.row), 프레임 \(frame.column) · 말풍선: \(side) · \(bubbleShown ? "표시" : "숨김")")
     }
     override func draw(_ dirtyRect: NSRect) {
         NSColor.clear.setFill(); bounds.fill(using: .copy)
-        let rect = atlas.drawingRect(row: displayedFrame.row, frame: displayedFrame.column, in: spriteRect)
-        atlas.image(row: displayedFrame.row, frame: displayedFrame.column).draw(in: rect, from: .zero, operation: .sourceOver, fraction: 1)
-        if displayedFrame.row == PetAnimationTimeline.dozeRow { drawZs(PetAnimationTimeline.dozeZs(column: displayedFrame.column)) }
+    }
+    private func drawSprite(in cell: CGRect) {
+        atlas.draw(row: displayedFrame.row, frame: displayedFrame.column, in: cell, view: spriteSurface)
+        if displayedFrame.row == PetAnimationTimeline.dozeRow { drawZs(PetAnimationTimeline.dozeZs(column: displayedFrame.column), in: cell) }
     }
     /// Each z is written white with a dark edge, like the pet's own outline, in the square it is given.
-    private func drawZs(_ squares: [CGRect]) {
-        let cell = spriteRect, unit = cell.width / PetSpritePresentation.cellSize.width
+    private func drawZs(_ squares: [CGRect], in cell: CGRect) {
+        let unit = cell.width / PetSpritePresentation.cellSize.width
         for square in squares {
             let left = cell.minX + square.minX * unit, right = cell.minX + square.maxX * unit
             let top = cell.maxY - square.minY * unit, bottom = cell.maxY - square.maxY * unit
@@ -309,6 +277,41 @@ final class PetView: NSView {
                 color.setStroke(); z.lineWidth = width * unit; z.stroke()
             }
         }
+    }
+    func revealBubble() { reveal.alert(now: ProcessInfo.processInfo.systemUptime); updateBubbleShown() }
+    private func updateBubbleShown() {
+        if let window, window.isVisible {
+            let head = atlas.interactionRect(in: spriteRect), pointer = pointerLocation()
+            func over(_ rect: CGRect) -> Bool { window.convertToScreen(convert(rect, to: nil)).contains(pointer) }
+            hovering = over(head) || (hovering && bubbleShown && over(head.union(bubbleSurface.frame)))
+        } else { hovering = false }
+        let held = previewRow != nil || previewLook || didDrag || hovering
+        let shown = reveal.update(now: ProcessInfo.processInfo.systemUptime, held: held) || bubbleAlwaysShown
+        guard shown != bubbleShown else { return }
+        bubbleShown = shown
+        let surfaces = [bubbleSurface!] + trail
+        if shown { stowBubble(false) }
+        if NSWorkspace.shared.accessibilityDisplayShouldReduceMotion {
+            surfaces.forEach { $0.alphaValue = shown ? 1 : 0 }
+            stowBubble(!shown)
+        } else {
+            NSAnimationContext.runAnimationGroup({ context in
+                context.duration = 0.18
+                surfaces.forEach { $0.animator().alphaValue = shown ? 1 : 0 }
+            }, completionHandler: { [weak self] in
+                if let self, !self.bubbleShown { self.stowBubble(true) }
+            })
+        }
+    }
+    private func stowBubble(_ stowed: Bool) {
+        guard stowed != bubbleStowed else { return }
+        bubbleStowed = stowed
+        ([bubbleSurface!] + trail).forEach { $0.isHidden = stowed }
+    }
+    override func hitTest(_ point: NSPoint) -> NSView? {
+        let local = convert(point, from: superview)
+        if atlas.opaque(at: local, in: spriteRect, row: displayedFrame.row, frame: displayedFrame.column) { return self }
+        return bubbleShown && bubbleSurface.frame.contains(local) ? self : nil
     }
     override func mouseDown(with event: NSEvent) {
         dragStart = window?.convertPoint(toScreen: event.locationInWindow); previousDragMouse = dragStart

@@ -15,8 +15,9 @@ enum ThoughtTrail {
         return diameters.map { diameter in
             let along = travelled + diameter / 2
             travelled += diameter + spacing
-            return CGRect(x: start + (pet.x - start) * along / reach - diameter / 2, y: edge + direction * along - diameter / 2,
-                          width: diameter, height: diameter)
+            var x = start + (pet.x - start) * along / reach - diameter / 2
+            if diameter == diameters[0] { x = min(max(x, bubble.minX + 14), bubble.maxX - 14 - diameter) }
+            return CGRect(x: x, y: edge + direction * along - diameter / 2, width: diameter, height: diameter)
         }
     }
 }
@@ -26,6 +27,18 @@ struct PetLayout {
     static let bubbleSize = CGSize(width: 330, height: 56)
     /// The pet as drawn inside its 192×208 cell, from the cell's top-left corner.
     static let visiblePet = CGRect(x: 54, y: 60, width: 118, height: 134)
+    static let petMargin: CGFloat = 4
+    static func visibleSprite(in cell: CGRect) -> CGRect {
+        let unit = cell.width / 192
+        return CGRect(x: cell.minX + visiblePet.minX * unit, y: cell.maxY - visiblePet.maxY * unit,
+                      width: visiblePet.width * unit, height: visiblePet.height * unit)
+    }
+    static func constrainedSprite(_ sprite: CGRect, screen: CGRect) -> CGRect {
+        let safe = screen.insetBy(dx: petMargin, dy: petMargin), visible = visibleSprite(in: sprite)
+        let x = min(max(visible.minX, safe.minX), max(safe.minX, safe.maxX - visible.width))
+        let y = min(max(visible.minY, safe.minY), max(safe.minY, safe.maxY - visible.height))
+        return sprite.offsetBy(dx: x - visible.minX, dy: y - visible.minY)
+    }
     let scale: CGFloat
     var spriteSize: CGSize { CGSize(width: 192 * scale, height: 208 * scale) }
     /// The bubble keeps room for the thought trail; the cell's empty margin around the pet counts toward it.
@@ -70,9 +83,7 @@ struct PetPlacement {
     init(spriteOrigin: CGPoint, scale: CGFloat, visibleFrame: CGRect) {
         let safe = visibleFrame.insetBy(dx: 12, dy: 12)
         let size = PetLayout(scale: scale).spriteSize
-        var sprite = CGRect(x: min(max(spriteOrigin.x, safe.minX), max(safe.minX, safe.maxX - size.width)),
-                            y: min(max(spriteOrigin.y, safe.minY), max(safe.minY, safe.maxY - size.height)),
-                            width: size.width, height: size.height)
+        var sprite = PetLayout.constrainedSprite(CGRect(origin: spriteOrigin, size: size), screen: visibleFrame)
         let bubbleSize = PetLayout.bubbleSize
         bubbleBelow = sprite.maxY + PetLayout.gap(scale: scale) + bubbleSize.height > safe.maxY
         let gap = PetLayout.gap(scale: scale, below: bubbleBelow)

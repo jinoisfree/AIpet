@@ -22,12 +22,20 @@ struct PetLayoutTests {
                        CGRect(x: -1920, y: -250, width: 1920, height: 1050),
                        CGRect(x: 0, y: 0, width: 800, height: 520)] {
             for scale in [0.25, 0.5, 1, 2] {
-                for x in [screen.minX - 100, screen.midX, screen.maxX + 100] {
-                    for y in [screen.minY - 100, screen.midY, screen.maxY + 100] {
+                for x in [screen.minX - 1000, screen.midX, screen.maxX + 100] {
+                    for y in [screen.minY - 1000, screen.midY, screen.maxY + 100] {
                         let placement = PetPlacement(spriteOrigin: CGPoint(x: x, y: y), scale: scale, visibleFrame: screen)
                         let globalSprite = placement.spriteRect.offsetBy(dx: placement.windowFrame.minX, dy: placement.windowFrame.minY)
                         let globalBubble = placement.bubbleRect.offsetBy(dx: placement.windowFrame.minX, dy: placement.windowFrame.minY)
-                        precondition(screen.contains(placement.windowFrame), "모서리에서도 창 전체가 화면 안에 유지")
+                        let visible = PetLayout.visibleSprite(in: globalSprite)
+                        precondition(screen.insetBy(dx: 4, dy: 4).insetBy(dx: -0.001, dy: -0.001).contains(visible), "보이는 그림은 화면 안 4pt")
+                        precondition(screen.insetBy(dx: 12, dy: 12).contains(globalBubble), "말풍선은 화면 안 12pt")
+                        if x < screen.minX { precondition(abs(visible.minX - screen.minX - 4) < 0.001) }
+                        if x > screen.maxX { precondition(abs(visible.maxX - screen.maxX + 4) < 0.001) }
+                        if y < screen.minY { precondition(abs(visible.minY - screen.minY - 4) < 0.001) }
+                        if y > screen.maxY { precondition(abs(visible.maxY - screen.maxY + 4) < 0.001) }
+                        let restored = PetPlacement(spriteOrigin: globalSprite.origin, scale: scale, visibleFrame: screen)
+                        precondition(restored.globalSprite == globalSprite, "저장 위치를 복원해도 그림이 움직이지 않음")
                         precondition(!globalSprite.intersects(globalBubble), "말풍선이 펫을 가리지 않음")
                         precondition(globalBubble.size == CGSize(width: 330, height: 56), "가장자리에서도 말풍선 고정 크기")
                         let below = placement.bubbleBelow, bubble = placement.bubbleRect
@@ -46,9 +54,9 @@ struct PetLayoutTests {
             }
         }
         let left = PetPlacement(spriteOrigin: .zero, scale: 0.25, visibleFrame: CGRect(x: 0, y: 0, width: 1000, height: 800))
-        precondition(left.spriteRect.minX == left.bubbleRect.minX, "왼쪽 가장자리에서는 좌측 정렬")
+        precondition(left.globalSprite.minX == 0 && left.globalBubble.minX == 12, "그림은 허용된 위치를 유지하고 말풍선만 화면 안으로 이동")
         let top = PetPlacement(spriteOrigin: CGPoint(x: 988, y: 790), scale: 0.25, visibleFrame: CGRect(x: 0, y: 0, width: 1000, height: 800))
-        precondition(top.bubbleBelow && top.spriteRect.maxX == top.bubbleRect.maxX, "위쪽 우측에서는 아래 말풍선과 우측 정렬")
+        precondition(top.bubbleBelow && PetLayout.visibleSprite(in: top.globalSprite).maxX == 996 && top.globalBubble.maxX == 988, "우측 그림 4pt, 아래 말풍선 12pt")
         let screen = CGRect(x: 0, y: 0, width: 1000, height: 800)
         var motion = PetBubbleMotion()
         motion.retarget(CGPoint(x: 12, y: 12), visibleFrame: screen, now: 0)

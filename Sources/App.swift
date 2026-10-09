@@ -44,6 +44,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     let monitor = StatusMonitor()
     let monitorQueue = DispatchQueue(label: "com.jinoisfree.taesik.monitor", qos: .utility)
     var polling = false
+    var bubbleAlert: String?, shownBubbleAlert: String?
     var bubbleMotion = PetBubbleMotion()
     var placementTarget: PetPlacement?
 
@@ -64,6 +65,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         pet.onDragMove = { [weak self] origin in self?.placePet(at: origin) }
         pet.onAnimationTick = { [weak self] in self?.advancePlacement() }
         pet.onDozeChanged = { [weak self] in self?.updatePet() }
+        pet.bubbleAlwaysShown = CommandLine.arguments.contains("--ui-smoke")
+            ? !CommandLine.arguments.contains("--ui-smoke-bubble-hidden")
+            : UserDefaults.standard.bool(forKey: BubbleReveal.settingsKey)
         buildMenu()
         pet.onMenu = { [weak self] event in guard let self else { return }; NSMenu.popUpContextMenu(self.menu, with: event, for: self.pet) }
         model.onSelect = { [weak self] id in self?.model.selectedID = id; self?.updatePet() }
@@ -114,13 +118,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     }
 
     func updatePet() {
+        defer {
+            if bubbleAlert != shownBubbleAlert {
+                shownBubbleAlert = bubbleAlert
+                if bubbleAlert != nil { pet.revealBubble() }
+            }
+        }
         statusItem.button?.toolTip = "AIpet · \(model.identity.name) · 작업 중 \(model.tasks.filter { $0.state == .running }.count)개"
         guard !isPreview else { return }
         if model.paused {
+            bubbleAlert = nil
             pet.state = .idle; pet.headline = "\(model.identity.subject) 쉬고 있어요"; pet.subtitle = "메뉴에서 다시 시작할 수 있어요"; return
         }
         let active = model.tasks.filter { $0.state == .running }.count
         let urgent = model.tasks.first { $0.state == .waiting || ($0.state == .failed && Date().timeIntervalSince($0.updatedAt) < 60) }
+        bubbleAlert = urgent.map { "task:\($0.id):\($0.state)" }
         let selected = model.tasks.first { $0.id == model.selectedID }
         let focused = model.tasks.first { $0.id == currentSnapshot?.screenFocus?.taskID && $0.state == .running }
         let eligible = model.tasks.first { $0.state == .running || ($0.state == .responded && Date().timeIntervalSince($0.updatedAt) < 20) }
@@ -148,6 +160,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         addMenu("작업 목록 열기", #selector(showDashboard))
         addMenu("펫 보이기 / 숨기기", #selector(togglePet))
         addMenu("잠시 쉬기 / 다시 시작", #selector(togglePause))
+        addMenu("말풍선 항상 보이기", #selector(toggleBubbleAlwaysShown(_:)))
+        menu.items.last?.state = pet.bubbleAlwaysShown ? .on : .off
         menu.addItem(.separator())
         addMenu("옵션…", #selector(showOptions))
         addMenu("위치 초기화", #selector(resetPosition))
@@ -169,6 +183,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             window.minSize = NSSize(width: 680, height: 560); window.center(); dashboard = window
         }
         NSApp.activate(ignoringOtherApps: true); dashboard?.makeKeyAndOrderFront(nil)
+    }
+    @objc func toggleBubbleAlwaysShown(_ sender: NSMenuItem) {
+        pet.bubbleAlwaysShown.toggle()
+        sender.state = pet.bubbleAlwaysShown ? .on : .off
+        UserDefaults.standard.set(pet.bubbleAlwaysShown, forKey: BubbleReveal.settingsKey)
     }
     @objc func togglePet() { if panel.isVisible { panel.orderOut(nil) } else { panel.orderFrontRegardless() } }
     @objc func togglePause() {
@@ -248,8 +267,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         let percent = min(200, max(25, value.isFinite ? value.rounded() : 100))
         let scale = CGFloat(percent) / 100
         let previous = panel.convertToScreen(pet.convert(pet.spriteRect, to: nil))
+        let visible = PetLayout.visibleSprite(in: previous)
         pet.petScale = scale
-        placePet(at: NSPoint(x: previous.midX - PetLayout(scale: scale).spriteSize.width / 2, y: previous.minY))
+        let next = PetLayout.visibleSprite(in: CGRect(origin: .zero, size: PetLayout(scale: scale).spriteSize))
+        placePet(at: NSPoint(x: visible.midX - next.midX, y: visible.minY - next.minY))
         sizeSlider?.doubleValue = percent; sizeValueLabel?.stringValue = "\(Int(percent))%"
         UserDefaults.standard.set(percent, forKey: "petScale")
         constrainPosition(); savePosition()
@@ -277,7 +298,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     }
     func placePet(at origin: NSPoint) {
         let size = PetLayout(scale: pet.petScale).spriteSize
-        let center = NSPoint(x: origin.x + size.width / 2, y: origin.y + size.height / 2)
+        let visible = PetLayout.visibleSprite(in: CGRect(origin: origin, size: size))
+        let center = NSPoint(x: visible.midX, y: visible.midY)
         let screen = NSScreen.screens.min { a, b in
             func distance(_ frame: NSRect) -> CGFloat {
                 let dx = max(0, max(frame.minX - center.x, center.x - frame.maxX))
@@ -347,6 +369,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         try? FileManager.default.createDirectory(at: destination, withIntermediateDirectories: true)
         for (name, view) in [("pet", pet as NSView), ("dashboard", dashboard!.contentView!)] {
             view.layoutSubtreeIfNeeded()
+            // Glass caching can include hidden surfaces; leave only the visible view tree in the snapshot.
+            let hidden = view.subviews.filter(\.isHidden)
+            hidden.forEach { $0.removeFromSuperview() }
+            defer { hidden.forEach { view.addSubview($0) } }
+            func redraw(_ current: NSView) { current.needsDisplay = true; current.subviews.forEach(redraw) }
+            redraw(view)
             guard let bitmap = view.bitmapImageRepForCachingDisplay(in: view.bounds) else { continue }
             view.cacheDisplay(in: view.bounds, to: bitmap)
             try? bitmap.representation(using: .png, properties: [:])?.write(to: destination.appendingPathComponent("\(name).png"))
