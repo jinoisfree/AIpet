@@ -1,0 +1,13 @@
+global using System;
+global using System.Collections.Generic;
+global using System.IO;
+global using System.Linq;
+global using System.Threading;
+global using System.Threading.Tasks;
+global using System.Windows;
+global using System.Windows.Controls;
+global using System.Windows.Media;
+global using AIpet.Core;
+global using Point = AIpet.Core.Point;
+global using Rect = AIpet.Core.Rect;
+global using Size = AIpet.Core.Size;

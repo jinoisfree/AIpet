@@ -1,0 +1,42 @@
+name: Windows
+on:
+  push:
+    paths:
+      - 'windows/**'
+      - '.github/workflows/windows.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - run: python -m pip install -r requirements-build.txt
+      - run: python windows/scripts/prepare_assets.py
+      - run: dotnet test windows/AIpet.sln -c Release
+      - run: dotnet publish windows/src/AIpet.App -c Release -r win-x64 --self-contained -p:PublishSingleFile=true -o windows/artifacts/win-x64
+      - name: Package Windows preview
+        shell: pwsh
+        run: |
+          $package = 'windows/artifacts/package'
+          New-Item -ItemType Directory -Force $package | Out-Null
+          Copy-Item windows/artifacts/win-x64/AIpet.exe $package
+          Copy-Item windows/README.md "$package/README.md"
+          $archive = 'windows/artifacts/AIpet-1.0.9-preview.1-win-x64.zip'
+          Compress-Archive -Path "$package/*" -DestinationPath $archive
+          $hash = (Get-FileHash $archive -Algorithm SHA256).Hash.ToLowerInvariant()
+          "$hash  AIpet-1.0.9-preview.1-win-x64.zip" | Set-Content windows/artifacts/SHA256SUMS -Encoding ascii
+      - uses: actions/upload-artifact@v4
+        with:
+          name: AIpet-win-x64
+          path: |
+            windows/artifacts/AIpet-1.0.9-preview.1-win-x64.zip
+            windows/artifacts/SHA256SUMS
+          if-no-files-found: error
