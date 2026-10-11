@@ -2,6 +2,7 @@
 """Validate original assets and produce lossless Windows resources."""
 import hashlib
 import json
+import sys
 from pathlib import Path
 from PIL import Image
 
@@ -15,7 +16,7 @@ DOZE = '9e5073f5811656ebdaba62eaedc6d060006092cfca4ca8239f401575f0a2bf99'
 def prepare():
     source = PET / 'spritesheet.webp'
     assert hashlib.sha256(source.read_bytes()).hexdigest() == EXPECTED, 'Upstream asset hash changed'
-    assert json.loads((PET / 'pet.json').read_text())['spriteVersionNumber'] == 2
+    assert json.loads((PET / 'pet.json').read_text(encoding='utf-8'))['spriteVersionNumber'] == 2
     for name, checksum in [('wave', WAVE), ('doze', DOZE)]:
         image = Image.open(PET / (name + '.png')).convert('RGBA')
         assert image.size == (768, 208) and hashlib.sha256(image.tobytes()).hexdigest() == checksum, name + ' art changed'
@@ -37,4 +38,5 @@ def prepare():
         print(f'{target.relative_to(ROOT)}: {target.stat().st_size} bytes, SHA256 {hashlib.sha256(target.read_bytes()).hexdigest()}')
 
 if __name__ == '__main__':
+    sys.stdout.reconfigure(encoding='utf-8')
     prepare()
