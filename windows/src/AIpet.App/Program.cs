@@ -26,7 +26,7 @@ public static class Program
     }
     private static int Run(string[] args)
     {
-        if (args.Contains("--snapshot") && !args.Contains("--hook"))
+        if ((args.Contains("--snapshot") || args.Contains("--usage-snapshot")) && !args.Contains("--hook"))
         {
             // Preserve redirected stdout; attach only when launched from an existing console.
             var output = GetStdHandle(-11);

@@ -46,3 +46,36 @@ start "" /wait AIpet.exe --snapshot > snapshot.json
 
 펫 창이 닫히거나 파괴되면 앱이 현재 설정으로 재생성합니다. 최근 1분에 최대 5회 시도하며,
 한도에 도달하면 시도 횟수가 줄어들 때까지 중단합니다. 메뉴로 숨긴 펫은 자동으로 재생성하지 않습니다.
+
+## 사용량과 추적 계정 (개발 중)
+
+쉬는 상태의 말풍선은 남은 사용량 5초 → Codex의 가린 계정 3초 → Claude Code의 가린 계정 3초로
+바뀝니다. 5시간·주간 중 덜 남은 값을 표시하고 주간 값에는 `주`를 붙입니다. 작업 목록의 **사용량**과
+옵션의 **추적 계정**에는 전체 이메일이 표시됩니다. 말풍선에는 앞 1~2글자만 남기며 트레이 툴팁과
+접근성 이름에는 이메일을 넣지 않습니다.
+
+- Codex: 앱 서버에서 계정·사용량을 5분마다 조회합니다. 실행 파일은 설정의 `codexPath`, PATH의
+  `codex.exe`·`codex.cmd`, `%APPDATA%\npm\codex.cmd`, `%LOCALAPPDATA%\Programs\Codex\codex.exe`,
+  `%LOCALAPPDATA%\Programs\Codex\bin\codex.exe` 순으로 찾습니다. 설치 위치는 실제 Windows에서 미검증입니다.
+  자동 탐색이 안 되면 종료 후 `settings.json`에 `"codexPath": "C:\\도구\\codex.cmd"`처럼 전체 경로를 넣으세요.
+- Claude 앱 기록: `%APPDATA%\Claude\plan-usage-history.json`을 30초마다 읽으며, 없으면
+  `%LOCALAPPDATA%\Packages\Claude_*\LocalCache\Roaming\Claude\plan-usage-history.json`을 찾습니다.
+  두 위치는 미검증 가정입니다. 기록의 조직 ID와 Claude Code 계정의 조직 ID가 같을 때만 계정을 표시합니다.
+- 계정 파일은 `%USERPROFILE%\.claude.json`, `CLAUDE_CONFIG_DIR`가 있으면 그 안의 `.claude.json`입니다.
+- **Claude 사용량 직접 조회**는 기본 꺼짐입니다. 옵션에서 켜면 `%USERPROFILE%\.claude\.credentials.json`
+  (`CLAUDE_CONFIG_DIR`가 있으면 그 안의 `.credentials.json`)에서 Claude Code 로그인 토큰을 읽어
+  `api.anthropic.com`에만 조회합니다. 파일 형식은 미검증입니다. 로그인 갱신이나 파일 쓰기는 하지 않습니다.
+  120초 간격이며 요청 제한(429)은 5·10·20분으로 늘립니다. 파일 접근 거부 시 껐다 켜거나 재시작해야 재개합니다.
+
+Codex·직접 조회 값은 60분, 앱 기록은 30분 동안 유효하며 초기화 시간이 지난 값도 `—`가 됩니다.
+일시 실패 시 유효 기간 안의 이전 값을 유지하고, 유효한 직접 조회 값이 없으면 앱 기록을 사용합니다.
+잠시 쉬는 동안 새 조회는 하지 않습니다. 토큰·응답·전체 이메일은 파일이나 오류 로그에 저장하지 않습니다.
+
+사용량 진단(cmd):
+
+```bat
+start "" /wait AIpet.exe --usage-snapshot > usage-snapshot.json
+```
+
+UTF-8 JSON에는 가린 계정만 들어가고 이 명령은 직접 조회를 실행하지 않습니다.
+기존 `--snapshot`은 계정 정보를 포함하지 않습니다. **사용량 기능의 실제 Windows 실행과 직접 조회는 아직 미검증입니다.**
