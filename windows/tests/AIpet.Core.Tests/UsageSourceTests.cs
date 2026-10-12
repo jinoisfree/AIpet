@@ -35,7 +35,7 @@ public sealed class UsageSourceTests : TestSupport
         Assert.Contains(Path.Combine(paths.Roaming, "npm", "codex.cmd"), candidates);
         Assert.Contains(Path.Combine(paths.Local, "Programs", "Codex", "codex.exe"), candidates);
         var called = 0;
-        var sources = new UsageSources(paths, runner: file => {
+        var sources = new UsageSources(paths, storeRoots: () => [], runner: file => {
             Assert.Equal(configured, file); called++;
             return Task.FromResult((UsageParser.Object("""{"result":{"account":{"email":"account@example.com"}}}"""),
                 UsageParser.Object("""{"result":{"rateLimits":{"primary":{"usedPercent":28,"windowDurationMins":300}}}}""")));
@@ -51,9 +51,9 @@ public sealed class UsageSourceTests : TestSupport
     [Fact]
     public async Task MissingExecutableAndTransportFailureAreGeneric()
     {
-        Assert.Equal("Codex 를 찾을 수 없음", (await new UsageSources(Paths).Codex(null)).Reason);
+        Assert.Equal("Codex 를 찾을 수 없음", (await new UsageSources(Paths, storeRoots: () => []).Codex(null)).Reason);
         var file = Path.Combine(Root, "broken.exe"); Write(file, "");
-        var result = await new UsageSources(Paths, runner: _ => throw new IOException("synthetic-secret@example.com")).Codex(file);
+        var result = await new UsageSources(Paths, storeRoots: () => [], runner: _ => throw new IOException("synthetic-secret@example.com")).Codex(file);
         Assert.Null(result.Value); Assert.Equal("Codex 연결 실패", result.Reason);
     }
     [Fact]
@@ -63,7 +63,7 @@ public sealed class UsageSourceTests : TestSupport
         Write(paths.Account, """{"oauthAccount":{"emailAddress":"account@example.com","organizationName":"Example","organizationUuid":"org-a"}}""");
         var history = Path.Combine(paths.Local, "Packages", "Claude_example", "LocalCache", "Roaming", "Claude", "plan-usage-history.json");
         Write(history, """{"samples":[{"t":1800000000000,"org":"org-a","u":{"fh":28,"sd":52}}]}""");
-        var sources = new UsageSources(paths);
+        var sources = new UsageSources(paths, storeRoots: () => []);
         Assert.Equal("account@example.com", sources.History()?.Account.Label);
         var primary = Path.Combine(paths.Roaming, "Claude", "plan-usage-history.json");
         Write(primary, """{"samples":[{"t":1800000000000,"org":"other","u":{"fh":28}}]}""");
@@ -75,7 +75,7 @@ public sealed class UsageSourceTests : TestSupport
     public async Task DirectSyntheticCredentialsExpiryDenialAndOptOut()
     {
         var paths = Paths with { ClaudeConfig = Path.Combine(Root, "config") }; var requests = 0;
-        var sources = new UsageSources(paths, request: token => {
+        var sources = new UsageSources(paths, storeRoots: () => [], request: token => {
             requests++; Assert.Equal("synthetic-token", token);
             return Task.FromResult((200, """{"five_hour":{"utilization":28,"resets_at":"2099-01-01T00:00:00Z"}}"""));
         });
@@ -86,7 +86,7 @@ public sealed class UsageSourceTests : TestSupport
         Write(paths.Credentials, """{"claudeAiOauth":{"accessToken":"synthetic-token"}}""");
         Assert.Equal(DirectUsageStatus.Success, (await sources.Direct(() => true)).Status); Assert.Equal(1, requests);
         var checks = 0; Assert.Equal(DirectUsageStatus.Disabled, (await sources.Direct(() => ++checks == 1)).Status); Assert.Equal(1, requests);
-        var denied = new UsageSources(paths, request: _ => throw new UnauthorizedAccessException("synthetic-token"));
+        var denied = new UsageSources(paths, storeRoots: () => [], request: _ => throw new UnauthorizedAccessException("synthetic-token"));
         Assert.Equal(DirectUsageStatus.Denied, (await denied.Direct(() => true)).Status);
     }
     private sealed class Handler(Func<HttpRequestMessage, HttpResponseMessage> respond) : HttpMessageHandler

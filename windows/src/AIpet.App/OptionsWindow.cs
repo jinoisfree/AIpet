@@ -37,7 +37,7 @@ public sealed class OptionsWindow : Window
         if (state.DirectStatus == DirectUsageStatus.Success && state.DirectSuccess is { } date) status += $" · {date.ToLocalTime():g}";
         usage.Children.Add(Ui.Text($"마지막 조회: {status}", 11));
         usage.Children.Add(Ui.Text("추적 계정", 12, true));
-        usage.Children.Add(Ui.PrivateText($"Codex {state.Codex?.Account.Label ?? "계정 확인 불가"}"));
+        usage.Children.Add(Ui.PrivateText($"Codex {state.CodexUsage?.Account.Label ?? "계정 확인 불가"}"));
         usage.Children.Add(Ui.PrivateText($"Claude Code {state.Claude(now)?.Account.Label ?? "계정 확인 불가"}"));
     }
 }

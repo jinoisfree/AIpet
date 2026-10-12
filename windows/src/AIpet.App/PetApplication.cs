@@ -163,8 +163,9 @@ public sealed class PetApplication : Application
         polling = true;
         try
         {
-            var snapshot = await Task.Run(() => monitor.Poll(forceDiscovery: force));
-            if (!Paused && !quitting) { Snapshot = snapshot; UpdatePet(); dashboard?.Refresh(); }
+            var result = await Task.Run(() => { var snapshot = monitor.Poll(forceDiscovery: force); return (snapshot, monitor.LatestCodexUsage); });
+            var snapshot = result.snapshot;
+            if (!Paused && !quitting) { usage.SetCodexRecord(result.LatestCodexUsage); Snapshot = snapshot; UpdatePet(); dashboard?.Refresh(); }
         }
         finally { polling = false; }
     }

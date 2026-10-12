@@ -67,7 +67,7 @@ public sealed class DashboardWindow : Window
         usage.Children.Clear(); usage.Children.Add(Ui.Text("사용량", 16, true));
         var now = DateTimeOffset.UtcNow; var state = model.Usage;
         var cards = new System.Windows.Controls.Primitives.UniformGrid { Columns = 2, Margin = new Thickness(0, 0, 0, 14) };
-        foreach (var (name, value, fallback) in new[] { ("Codex", state.Codex, state.CodexReason), ("Claude Code", state.Claude(now), state.HistoryReason) })
+        foreach (var (name, value, fallback) in new[] { ("Codex", state.CodexUsage, state.CodexFailure(now)), ("Claude Code", state.Claude(now), state.ClaudeFailure(now)) })
         {
             var card = new StackPanel(); card.Children.Add(Ui.Text($"{name} · 남은 사용량", 12, true));
             card.Children.Add(Ui.Text($"5시간 {value?.WindowLabel(UsagePeriod.FiveHour, now) ?? "—"} · 주간 {value?.WindowLabel(UsagePeriod.Weekly, now) ?? "—"}", 13));
@@ -77,7 +77,7 @@ public sealed class DashboardWindow : Window
             card.Children.Add(Ui.PrivateText(value?.Account.Detail ?? "요금제·조직 확인 불가"));
             card.Children.Add(Ui.Text(value?.Source.Label() ?? "조회 대기", 10));
             if (value is not null) card.Children.Add(Ui.Text($"마지막 조회: {value.ObservedAt.ToLocalTime():g}", 10));
-            var reason = state.Reason(value, fallback, now);
+            var reason = value?.Display(now) == "—" || value is null ? fallback : "";
             if (reason.Length > 0) { var label = Ui.Wrapped(reason, 10); label.Foreground = Brushes.DarkOrange; card.Children.Add(label); }
             cards.Children.Add(new Border { Background = Brushes.White, CornerRadius = new CornerRadius(12), Padding = new Thickness(12), Margin = new Thickness(0, 0, 10, 0), Child = card });
         }

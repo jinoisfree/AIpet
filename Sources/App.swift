@@ -123,9 +123,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         monitorQueue.async { [weak self] in
             guard let self else { return }
             let snapshot = self.monitor.poll()
+            let codexUsage = self.monitor.latestCodexUsage
             DispatchQueue.main.async {
                 self.polling = false
-                if !self.model.paused { self.apply(snapshot) }
+                if !self.model.paused { self.model.usage.codexRecord = codexUsage; self.apply(snapshot) }
             }
         }
     }
@@ -293,7 +294,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         guard !smokeMode, !model.paused else { return }
         configureUsage()
         usageMonitor.refresh { [weak self] state in
-            self?.model.usage = state; self?.updatePet(); self?.updateUsageOptions()
+            guard let self else { return }
+            var updated = state; updated.codexRecord = self.model.usage.codexRecord
+            self.model.usage = updated; self.updatePet(); self.updateUsageOptions()
         }
     }
     @objc func toggleDirectUsage(_ sender: NSButton) {
@@ -308,7 +311,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         var text = state.directStatus.rawValue
         if state.directStatus == .success, let date = state.directSuccess { text += " · " + DateFormatter.localizedString(from: date, dateStyle: .short, timeStyle: .medium) }
         usageStatusLabel?.stringValue = "마지막 직접 조회: " + text
-        let codex = state.codex?.account, claude = state.claude(at: Date())?.account
+        let codex = state.codexUsage?.account, claude = state.claude(at: Date())?.account
         usageAccountsLabel?.stringValue = "추적 계정\nCodex: \(codex?.label ?? "계정 확인 불가") · \(codex?.detail ?? "—")\nClaude Code: \(claude?.label ?? "계정 확인 불가") · \(claude?.detail ?? "—")"
     }
     @objc func savePetName() {

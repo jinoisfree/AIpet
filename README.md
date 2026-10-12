@@ -2,14 +2,14 @@
 
 **AIpet**은 Codex와 Claude Code의 작업 상태를 알려 주는 독립형 데스크톱 펫입니다. macOS 정식 버전과 Windows 미리보기 버전을 제공합니다. AI가 작업하는 동안 태식이가 화면에 머물며 작업 중·확인 필요·응답 종료 등의 상태를 표시합니다.
 
-현재 macOS 소스 버전은 **1.0.10**입니다. Mac 앱은 Swift, AppKit, SwiftUI로, Windows 앱은 C# .NET 8 WPF로 구현했습니다. 실행할 때 Python, Node.js, API 키가 필요하지 않습니다.
+현재 macOS 소스 버전은 **1.0.11**입니다. Mac 앱은 Swift, AppKit, SwiftUI로, Windows 앱은 C# .NET 8 WPF로 구현했습니다. 실행할 때 Python, Node.js, API 키가 필요하지 않습니다.
 
 ## 운영체제별 다운로드
 
 | 운영체제 | 다운로드 | 상태 |
 |---|---|---|
-| **Mac · Apple Silicon** | [AIpet 1.0.10 ZIP](https://github.com/jinoisfree/AIpet/releases/download/v1.0.10/AIpet-1.0.10-arm64.zip) | 정식 배포본 · macOS 13 이상 빌드 대상 |
-| **Windows · x64** | [AIpet 1.0.10 Preview 1 ZIP](https://github.com/jinoisfree/AIpet/releases/download/windows-v1.0.10-preview.1/AIpet-1.0.10-preview.1-win-x64.zip) · [설치 프로그램](https://github.com/jinoisfree/AIpet/releases/download/windows-v1.0.10-preview.1/AIpet-Setup-win-x64.exe) | 실사용 확인 전 미리보기 · 자체 포함 .NET 런타임 |
+| **Mac · Apple Silicon** | [AIpet 1.0.11 ZIP](https://github.com/jinoisfree/AIpet/releases/download/v1.0.11/AIpet-1.0.11-arm64.zip) | 정식 배포본 · macOS 13 이상 빌드 대상 |
+| **Windows · x64** | [AIpet 1.0.11 Preview 1 ZIP](https://github.com/jinoisfree/AIpet/releases/download/windows-v1.0.11-preview.1/AIpet-1.0.11-preview.1-win-x64.zip) · [설치 프로그램](https://github.com/jinoisfree/AIpet/releases/download/windows-v1.0.11-preview.1/AIpet-Setup-win-x64.exe) | 실사용 확인 전 미리보기 · 자체 포함 .NET 런타임 |
 
 업데이트: Mac은 실행 중인 AIpet을 종료하고 새 `AIpet.app`으로 덮어쓰세요. Windows는 설치 프로그램을 다시 실행하면 기존 설치본을 교체합니다. 두 방식 모두 설정을 유지합니다. Windows ZIP 사용자는 `AIpet.exe`를 종료한 뒤 새 파일로 교체하세요.
 
@@ -19,6 +19,18 @@ Windows의 실제 UI·DPI·AI 연동은 아직 사용자 PC에서 확인해야 �
 
 사용량·추적 계정 표시는 Mac과 Windows 모두 제공합니다. 아래의 나머지 기능·지원 환경·빌드 안내는 macOS 기준입니다. Windows에는 AI 대상 창 바라보기,
 외곽 보강, 유리 효과, 자동 훅 설정 도구가 아직 포함되지 않습니다.
+
+## 사용량이 표시되는 조건
+
+Codex는 이 컴퓨터의 Codex 앱 또는 CLI에 로그인되어 있어야 합니다. 웹 ChatGPT 로그인만으로는
+연결되지 않습니다. Codex로 작업하면 작업 기록의 사용량 표본에서도 표시합니다.
+앱 서버와 작업 기록 중 관측 시각이 더 늦은 값을 쓰며, 작업 기록은 최대 24시간 동안만 유효합니다.
+각 창의 초기화 시각이 지나면 표시하지 않습니다. 작업 기록에는 이메일이 없으므로 해당 출처는
+요금제만 표시하고 계정은 `계정 확인 불가`로 둡니다. 다른 출처에서 얻은 이메일을 붙이지 않습니다.
+
+Claude는 구독 계정으로 Claude Code에 로그인하고 옵션의 **Claude 사용량 직접 조회**를 켜거나,
+Claude 데스크톱 앱의 최근 사용량 기록이 있어야 합니다. API 키 로그인에는 구독 한도 값이 없습니다.
+값이 없으면 작업 목록의 이유 문구와 `--usage-snapshot`을 확인하세요.
 
 ## 주요 기능
 
@@ -113,7 +125,7 @@ Codex 훅은 `/hooks`에서 사용자 신뢰 검토가 필요합니다. Claude C
 
 ## 상태 표시와 개인정보
 
-Mac 1.0.10의 사용량은 Codex 앱 서버의 계정·한도 조회(5분 간격)와 Claude 앱의 로컬 사용량 기록(30초 간격)을 사용합니다. Claude 기록의 조직 ID가 Claude Code 로그인 계정과 같을 때만 그 이메일을 연결합니다. 기록이 오래되면 현재 값처럼 표시하지 않고 `—`로 표시합니다.
+Mac 1.0.11의 사용량은 Codex 앱 서버의 계정·한도 조회(5분 간격)와 Claude 앱의 로컬 사용량 기록(30초 간격)을 사용합니다. Codex 작업 기록은 기존 상태 폴링(2초)에서 사용량 메타데이터도 읽습니다. Claude 기록의 조직 ID가 Claude Code 로그인 계정과 같을 때만 그 이메일을 연결합니다. 기록이 오래되면 현재 값처럼 표시하지 않고 `—`로 표시합니다.
 
 옵션의 **Claude 사용량 직접 조회는 기본 꺼짐**입니다. 켜면 키체인 허용 창이 나타날 수 있으며, Claude Code 로그인 토큰으로 `https://api.anthropic.com/api/oauth/usage`에만 조회합니다. 리디렉션을 거부하고 쿠키·캐시를 사용하지 않으며, 토큰·응답을 저장하거나 로그에 남기지 않습니다. 토큰 갱신이나 로그인 정보 쓰기도 하지 않습니다. 직접 조회는 120초 간격이며 요청 제한(429) 시 5·10·20분으로 늘립니다. 키체인 접근 거부 후에는 옵션을 껐다 켜거나 앱을 다시 시작하기 전까지 재시도하지 않습니다.
 

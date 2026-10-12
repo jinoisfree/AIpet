@@ -411,3 +411,29 @@ win-x64 자체 포함 단일 파일 publish 성공(`AIpet.exe` 164,903,973바이
 Mac에서 CLI `--usage-snapshot`은 Codex `—`/`Codex 를 찾을 수 없음`, Claude `—`/오래된 기록,
 계정은 가림, `directQuery`는 `실행 안 함`이었다. 일반 `--snapshot` 출력의 `@`는 0개였다.
 GitHub Actions와 실제 Windows 실행은 푸시 금지 범위에 따라 이번에는 실행하지 않았다.
+
+
+## 1.0.11 미리보기 1 — Codex 기록과 Store 탐색
+
+TranscriptDecoder가 기존 2MiB tail 읽기 범위에서 사용량 숫자·시각·요금제만 보관하고 StatusMonitor가
+파일별 최신 표본 중 가장 최근 것을 제공한다. 작업 상태에는 영향을 주지 않으며 제외된 세션의 메타데이터도
+파싱할 수 있다. 기존 subagents 디렉터리 제외·200파일 발견 제한은 유지한다.
+app-server와 기록 중 최신 값을 선택하며 기록 TTL은 24시간, 계정은 항상 확인 불가다.
+일반 --snapshot 형식은 그대로이고 --usage-snapshot에 선택 출처·이유·실행 파일 종류·별도 기록 표본을 추가했다.
+
+Store 조회는 [GetPackagesByPackageFamily](https://learn.microsoft.com/en-us/windows/win32/api/appmodel/nf-appmodel-getpackagesbypackagefamily)와
+[GetPackagePathByFullName](https://learn.microsoft.com/en-us/windows/win32/api/appmodel/nf-appmodel-getpackagepathbyfullname)을 사용한다.
+실제 Windows API 실행과 패키지 안 codex.exe의 외부 실행 가능 여부는 미검증이며 합성 폴더만 테스트했다.
+제품 프로세스 실행 실패는 개인정보 없는 Codex 앱 실행 불가 상태로 반환한다.
+워크플로 ZIP은 AIpet-1.0.11-preview.1-win-x64.zip, 설치 프로그램 기본 버전은 1.0.11이다.
+루트 README의 기존 배포 다운로드 링크는 유지하며 새 릴리스·병합은 별도 승인 후 진행한다.
+
+사용자 PC 추가 확인: Codex 작업 후 기록 출처 사용량, Store 설치 Codex 후보 종류와 실행 여부,
+작업 목록의 이유 문구, Claude 직접 조회, 기존 펫 소실 현상의 재현 여부.
+
+
+1.0.11 로컬 검증: Release 빌드 경고 0·오류 0, xUnit 80개 통과·실패 0·건너뜀 0(기존 74+추가 6).
+Mac에서 검증용 CODEX_HOME을 지정한 CLI는 실행 파일 종류 none이며 Codex 작업 기록을 선택했다.
+주간 사용 50%, 남음 주 50%, 관측 2026-10-12T12:19:34.97Z, 초기화 2026-10-18T13:37:57Z,
+계정 확인 불가를 확인했다. Claude는 오래된 기록이라 —와 직접 조회를 켜라는 안내였다.
+일반 --snapshot은 @ 0개였다. 실제 Windows Store 실행·사용량 화면·직접 조회는 확인하지 않았다.

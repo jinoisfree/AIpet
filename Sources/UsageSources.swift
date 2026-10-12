@@ -5,6 +5,7 @@ import Darwin
 // This layer never logs payloads, credentials, accounts, or transport errors.
 final class UsageSources {
     static let directSettingsKey = "claudeUsageDirectEnabled"
+    private(set) var codexExecutable = "none"
     private let home: URL
     private let environment: [String: String]
     init(home: URL = FileManager.default.homeDirectoryForCurrentUser, environment: [String: String] = ProcessInfo.processInfo.environment) {
@@ -28,7 +29,9 @@ final class UsageSources {
     func codex(executablePath: String? = nil) -> (ServiceUsage?, String) {
         let candidates = executablePath.map { [$0] } ?? ["/Applications/ChatGPT.app/Contents/Resources/codex-cli/CodexCLI.app/Contents/MacOS/codex", "/Applications/ChatGPT.app/Contents/Resources/codex",
                           home.appendingPathComponent(".local/bin/codex").path, "/opt/homebrew/bin/codex", "/usr/local/bin/codex"]
+        codexExecutable = "none"
         guard let path = candidates.first(where: { FileManager.default.isExecutableFile(atPath: $0) }) else { return (nil, "Codex 를 찾을 수 없음") }
+        codexExecutable = executablePath == nil ? "path" : "configured"
         let process = Process(), input = Pipe(), output = Pipe()
         process.executableURL = URL(fileURLWithPath: path); process.arguments = ["app-server", "--listen", "stdio://"]
         process.standardInput = input; process.standardOutput = output; process.standardError = FileHandle.nullDevice
@@ -44,7 +47,7 @@ final class UsageSources {
             try? output.fileHandleForReading.close()
         }
         guard fcntl(input.fileHandleForWriting.fileDescriptor, F_SETNOSIGPIPE, 1) >= 0 else { return (nil, "Codex 연결 실패") }
-        do { try process.run() } catch { return (nil, "Codex 연결 실패") }
+        do { try process.run() } catch { return (nil, "Codex 앱 실행 불가") }
         let descriptor = output.fileHandleForReading.fileDescriptor
         let flags = fcntl(descriptor, F_GETFL)
         guard flags >= 0, fcntl(descriptor, F_SETFL, flags | O_NONBLOCK) >= 0 else { return (nil, "Codex 연결 실패") }
@@ -52,7 +55,7 @@ final class UsageSources {
             guard var data = try? JSONSerialization.data(withJSONObject: message) else { return false }
             data.append(10); return (try? input.fileHandleForWriting.write(contentsOf: data)) != nil
         }
-        guard send(["id": 1, "method": "initialize", "params": ["clientInfo": ["name": "aipet", "version": "1.0.10"]]]) else { return (nil, "Codex 연결 실패") }
+        guard send(["id": 1, "method": "initialize", "params": ["clientInfo": ["name": "aipet", "version": "1.0.11"]]]) else { return (nil, "Codex 연결 실패") }
         var buffer = Data(), total = 0, account: [String: Any]?, limits: [String: Any]?
         var initialized = false
         let deadline = ProcessInfo.processInfo.systemUptime + 10
@@ -104,6 +107,8 @@ final class UsageSources {
     func snapshot() -> UsageState {
         var state = UsageState()
         let result = codex(); state.codex = result.0; state.codexReason = result.1; state.history = history()
+        state.codexExecutable = codexExecutable
+        let monitor = StatusMonitor(); _ = monitor.poll(forceDiscovery: true); state.codexRecord = monitor.latestCodexUsage
         return state
     }
 }
@@ -163,7 +168,7 @@ final class UsageMonitor {
             let now = Date()
             if self.allowed(), now >= self.codexAt {
                 let result = self.sources.codex(); self.state.codex = UsageState.retaining(self.state.codex, success: result.0)
-                self.state.codexReason = result.1; self.codexAt = Date().addingTimeInterval(300)
+                self.state.codexExecutable = self.sources.codexExecutable; self.state.codexReason = result.1; self.codexAt = Date().addingTimeInterval(300)
             }
             if self.allowed(), now >= self.historyAt {
                 self.state.history = UsageState.retaining(self.state.history, success: self.sources.history()); self.historyAt = Date().addingTimeInterval(30)

@@ -24,6 +24,7 @@ public sealed class TranscriptDecoder(Provider provider, string sessionID)
         if (state != WorkState.Running) ComputerUse.Reset();
         return Last = new(Provider, SessionID, TurnID, Project, state, date, "로컬 기록", eventName);
     }
+    public ServiceUsage? LatestUsage { get; private set; }
     private WorkItem? Codex(JsonElement value)
     {
         var kind = value.String("type"); var payload = value.Get("payload");
@@ -35,6 +36,7 @@ public sealed class TranscriptDecoder(Provider provider, string sessionID)
             Excluded = payload.Get("parent_thread_id").ValueKind != JsonValueKind.Undefined || payload.Get("source").Get("subagent").ValueKind != JsonValueKind.Undefined;
             return null;
         }
+        LatestUsage = UsageState.Newest(LatestUsage, UsageParser.CodexRecord(value));
         if (Excluded) return null;
         if (kind == "turn_context")
         {

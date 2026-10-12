@@ -8,6 +8,7 @@ struct TranscriptDecoder {
     var turnID = ""
     var excluded = false
     var last: WorkItem?
+    private(set) var latestUsage: ServiceUsage?
     var computerUse = ComputerUseActivity()
     private(set) var taskStartedAt: Date?
     private(set) var firstObservedAt: Date?
@@ -45,6 +46,7 @@ struct TranscriptDecoder {
             excluded = payload["parent_thread_id"] != nil || (payload["source"] as? [String: Any])?["subagent"] != nil
             return nil
         }
+        if let sample = UsageParser.codexRecord(object) { latestUsage = UsageState.newest(latestUsage, sample) }
         guard !excluded else { return nil }
         if kind == "turn_context" {
             if let incoming = payload["turn_id"] as? String, incoming != turnID {
