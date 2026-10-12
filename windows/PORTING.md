@@ -322,7 +322,7 @@ Tests/WindowGuardTests.cs; windows/README.md, windows/PORTING.md.
 로컬 검증: Release 빌드 경고 0·오류 0, 테스트 통과 47·실패 0·건너뜀 0(기존 37+추가 10).
 추가 검사는 표시 의도·외부 숨김·최소화·최상위 해제·cloaked 분기 및 로그 필드/빈도/크기/UTF-8/실패를 검증한다.
 실제 Windows 재현 해결 여부는 아직 확인하지 않았다. 이 변경은 브랜치와 CI 아티팩트로만 제공하며,
-기존 릴리스를 수정하지 않고 preview.2로 제공한다.
+당시 변경은 기존 릴리스를 수정하지 않고 1.0.9 preview.2로 제공했다.
 
 
 ## 창 재생성과 트레이 복구 보완
@@ -402,7 +402,8 @@ JSON-RPC 파이프·가짜 HTTP·설정 저장·조회 주기·429·접근 거�
 - [ ] 잠시 쉬는 동안 새 사용량 조회가 일어나지 않는다.
 - [ ] 설치 환경에 맞는 `codexPath`와 Claude 기록·계정 파일 위치를 확인한다.
 
-기존 preview.2 다운로드 및 워크플로 버전 표기는 변경하지 않았다. 이번 기능은 로컬 개발본이며 푸시·배포하지 않았다.
+사용량 기능은 Windows 1.0.10 미리보기 1로 제공한다. ZIP 이름은 `AIpet-1.0.10-preview.1-win-x64.zip`, 설치 프로그램 버전은 1.0.10이다. 기존 릴리스는 유지한다.
+Codex 탐색은 설정의 `codexPath`와 PATH 항목이 절대 경로인 경우에만 사용한다. 상대 경로 및 Windows 드라이브 상대 경로를 제외하는 테스트를 추가했다.
 
 이번 로컬 검증 결과: `dotnet build windows/AIpet.sln -c Release` 경고 0·오류 0,
 `dotnet test windows/AIpet.sln -c Release` 통과 73·실패 0·건너뜀 0(기존 60+추가 13),

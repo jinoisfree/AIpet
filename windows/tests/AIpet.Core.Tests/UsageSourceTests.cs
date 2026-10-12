@@ -8,6 +8,25 @@ public sealed class UsageSourceTests : TestSupport
     private UsagePaths Paths => new(Path.Combine(Root, "home"), Path.Combine(Root, "roaming"), Path.Combine(Root, "local"), null, Path.Combine(Root, "path"));
     private static void Write(string path, string text) { Directory.CreateDirectory(Path.GetDirectoryName(path)!); File.WriteAllText(path, text); }
     [Fact]
+    public void CodexIgnoresRelativeConfiguredAndPathEntries()
+    {
+        var absolute = Path.Combine(Root, "absolute");
+        var entries = new[] { "", ".", "relative", "..", "\"" + absolute + "\"" };
+        var paths = Paths with { SearchPath = string.Join(Path.PathSeparator, entries) };
+        var candidates = paths.CodexCandidates("relative-codex.exe").ToArray();
+        Assert.Equal(Path.Combine(absolute, "codex.exe"), candidates[0]);
+        Assert.Equal(Path.Combine(absolute, "codex.cmd"), candidates[1]);
+        Assert.All(candidates, candidate => Assert.True(Path.IsPathFullyQualified(candidate)));
+        Assert.DoesNotContain("relative-codex.exe", candidates);
+        var configured = Path.Combine(Root, "configured.exe");
+        Assert.Equal(configured, paths.CodexCandidates(configured).First());
+        if (OperatingSystem.IsWindows())
+        {
+            paths = paths with { SearchPath = @"C:relative;\rooted;" + absolute };
+            Assert.Equal(Path.Combine(absolute, "codex.exe"), paths.CodexCandidates(@"C:codex.exe").First());
+        }
+    }
+    [Fact]
     public async Task CandidateOrderInjectedRunnerAndSnapshotNeverReadCredentials()
     {
         var paths = Paths; var configured = Path.Combine(Root, "chosen.exe"); Write(configured, "synthetic");

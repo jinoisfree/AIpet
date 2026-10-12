@@ -13,9 +13,13 @@ public sealed record UsagePaths(string Home, string Roaming, string Local, strin
     public string Credentials => Path.Combine(ClaudeConfig ?? Path.Combine(Home, ".claude"), ".credentials.json");
     public IEnumerable<string> CodexCandidates(string? configured)
     {
-        if (!string.IsNullOrWhiteSpace(configured)) yield return configured;
+        if (!string.IsNullOrWhiteSpace(configured) && Path.IsPathFullyQualified(configured)) yield return configured;
         foreach (var directory in SearchPath.Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries))
-            foreach (var name in new[] { "codex.exe", "codex.cmd" }) yield return Path.Combine(directory.Trim('"'), name);
+        {
+            var absolute = directory.Trim('"');
+            if (!Path.IsPathFullyQualified(absolute)) continue;
+            foreach (var name in new[] { "codex.exe", "codex.cmd" }) yield return Path.Combine(absolute, name);
+        }
         yield return Path.Combine(Roaming, "npm", "codex.cmd");
         yield return Path.Combine(Local, "Programs", "Codex", "codex.exe");
         yield return Path.Combine(Local, "Programs", "Codex", "bin", "codex.exe");

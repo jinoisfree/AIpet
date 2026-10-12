@@ -8,19 +8,21 @@
 
 | 운영체제 | 다운로드 | 상태 |
 |---|---|---|
-| **Mac · Apple Silicon** | [AIpet 1.0.7 ZIP](https://github.com/jinoisfree/AIpet/releases/download/v1.0.7/AIpet-1.0.7-arm64.zip) | 기존 정식 배포본 · macOS 13 이상 빌드 대상 |
-| **Windows · x64** | [AIpet 1.0.9 Preview 2 ZIP](https://github.com/jinoisfree/AIpet/releases/download/windows-v1.0.9-preview.2/AIpet-1.0.9-preview.2-win-x64.zip) | 실사용 확인 전 미리보기 · 자체 포함 .NET 런타임 |
+| **Mac · Apple Silicon** | [AIpet 1.0.10 ZIP](https://github.com/jinoisfree/AIpet/releases/download/v1.0.10/AIpet-1.0.10-arm64.zip) | 정식 배포본 · macOS 13 이상 빌드 대상 |
+| **Windows · x64** | [AIpet 1.0.10 Preview 1 ZIP](https://github.com/jinoisfree/AIpet/releases/download/windows-v1.0.10-preview.1/AIpet-1.0.10-preview.1-win-x64.zip) · [설치 프로그램](https://github.com/jinoisfree/AIpet/releases/download/windows-v1.0.10-preview.1/AIpet-Setup-win-x64.exe) | 실사용 확인 전 미리보기 · 자체 포함 .NET 런타임 |
+
+업데이트: Mac은 실행 중인 AIpet을 종료하고 새 `AIpet.app`으로 덮어쓰세요. Windows는 설치 프로그램을 다시 실행하면 기존 설치본을 교체합니다. 두 방식 모두 설정을 유지합니다. Windows ZIP 사용자는 `AIpet.exe`를 종료한 뒤 새 파일로 교체하세요.
 
 Mac은 압축을 풀어 `AIpet.app`을, Windows는 `AIpet.exe`를 실행하세요.
 Windows의 실제 UI·DPI·AI 연동은 아직 사용자 PC에서 확인해야 하며, 서명되지 않은 실행 파일입니다.
 [Windows 사용 안내](windows/README.md) · [검증 범위와 PC 체크리스트](windows/PORTING.md)
 
-아래 기능·지원 환경·빌드 안내는 macOS 기준입니다. Windows에는 AI 대상 창 바라보기,
+사용량·추적 계정 표시는 Mac과 Windows 모두 제공합니다. 아래의 나머지 기능·지원 환경·빌드 안내는 macOS 기준입니다. Windows에는 AI 대상 창 바라보기,
 외곽 보강, 유리 효과, 자동 훅 설정 도구가 아직 포함되지 않습니다.
 
 ## 주요 기능
 
-- **Mac 사용량·추적 계정**: 쉬는 상태의 말풍선에서 Codex·Claude Code 남은 사용량과 가린 계정을 순환 표시합니다. 작업 목록·옵션에서는 추적 계정 이메일 전체를 확인할 수 있습니다. Windows 사용량 표시는 다음 단계입니다.
+- **Mac·Windows 사용량·추적 계정**: 쉬는 상태의 말풍선에서 Codex·Claude Code 남은 사용량과 가린 계정을 순환 표시합니다. 작업 목록·옵션에서는 추적 계정 이메일 전체를 확인할 수 있습니다.
 
 - **여러 AI 작업 표시**: Codex와 Claude Code가 동시에 일하면 말풍선에 두 서비스 이름을 함께 표시합니다. 서비스별 작업 목록과 작업 고정을 지원합니다.
 - **이름과 크기 설정**: 펫 이름을 1~20자로 변경하면 안내·말풍선·미리보기·접근성 설명에 반영됩니다. 크기는 25~200%로 조절하며 말풍선과 글자 크기는 유지됩니다.

@@ -1,4 +1,4 @@
-# AIpet Windows 미리보기
+# AIpet Windows 1.0.10 미리보기 1
 
 GitHub에서 **AIpet-Setup-win-x64.exe**를 받아 실행하세요. 다음 버전도 같은 설치 파일을
 실행하면 설치된 구버전 실행 파일을 새 파일로 교체합니다. 실행 중인 AIpet을 닫으라는
@@ -47,7 +47,7 @@ start "" /wait AIpet.exe --snapshot > snapshot.json
 펫 창이 닫히거나 파괴되면 앱이 현재 설정으로 재생성합니다. 최근 1분에 최대 5회 시도하며,
 한도에 도달하면 시도 횟수가 줄어들 때까지 중단합니다. 메뉴로 숨긴 펫은 자동으로 재생성하지 않습니다.
 
-## 사용량과 추적 계정 (개발 중)
+## 사용량과 추적 계정
 
 쉬는 상태의 말풍선은 남은 사용량 5초 → Codex의 가린 계정 3초 → Claude Code의 가린 계정 3초로
 바뀝니다. 5시간·주간 중 덜 남은 값을 표시하고 주간 값에는 `주`를 붙입니다. 작업 목록의 **사용량**과
@@ -57,7 +57,7 @@ start "" /wait AIpet.exe --snapshot > snapshot.json
 - Codex: 앱 서버에서 계정·사용량을 5분마다 조회합니다. 실행 파일은 설정의 `codexPath`, PATH의
   `codex.exe`·`codex.cmd`, `%APPDATA%\npm\codex.cmd`, `%LOCALAPPDATA%\Programs\Codex\codex.exe`,
   `%LOCALAPPDATA%\Programs\Codex\bin\codex.exe` 순으로 찾습니다. 설치 위치는 실제 Windows에서 미검증입니다.
-  자동 탐색이 안 되면 종료 후 `settings.json`에 `"codexPath": "C:\\도구\\codex.cmd"`처럼 전체 경로를 넣으세요.
+  상대 경로인 PATH 항목과 `codexPath`는 무시합니다. 자동 탐색이 안 되면 종료 후 `settings.json`에 `"codexPath": "C:\\도구\\codex.cmd"`처럼 전체 경로를 넣으세요.
 - Claude 앱 기록: `%APPDATA%\Claude\plan-usage-history.json`을 30초마다 읽으며, 없으면
   `%LOCALAPPDATA%\Packages\Claude_*\LocalCache\Roaming\Claude\plan-usage-history.json`을 찾습니다.
   두 위치는 미검증 가정입니다. 기록의 조직 ID와 Claude Code 계정의 조직 ID가 같을 때만 계정을 표시합니다.
