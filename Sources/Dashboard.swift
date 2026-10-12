@@ -23,6 +23,7 @@ struct Dashboard: View {
     private let ink = Color(red: 0.08, green: 0.13, blue: 0.15)
     var filtered: [WorkItem] { model.tasks.filter { model.filter == "전체" || $0.provider.name == model.filter } }
     var body: some View {
+        ScrollView {
         VStack(alignment: .leading, spacing: 0) {
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 6) {
@@ -49,7 +50,7 @@ struct Dashboard: View {
             if let warning = model.warning {
                 Text(warning).font(.caption).foregroundColor(.orange).padding(.bottom, 8)
             }
-            ScrollView {
+            Group {
                 LazyVStack(spacing: 8) {
                     if filtered.isEmpty {
                         VStack(spacing: 10) {
@@ -101,7 +102,8 @@ struct Dashboard: View {
                     if let date = model.lastScan { Text(date, style: .time).foregroundColor(.secondary) }
                 }.font(.system(size: 10))
             }.padding(.top, 15)
-        }.padding(26).frame(minWidth: 720, minHeight: 780)
+        }.padding(26).frame(maxWidth: .infinity, alignment: .leading)
+        }.frame(minWidth: 680, minHeight: 560)
             .foregroundColor(ink).background(Color(red: 0.95, green: 0.96, blue: 0.93)).environment(\.colorScheme, .light)
     }
     private var usageSection: some View {

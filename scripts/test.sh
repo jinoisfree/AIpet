@@ -18,3 +18,6 @@ xcrun swiftc -swift-version 5 -module-cache-path "$ROOT/.build/module-cache" "$R
 "$ROOT/.build/BubbleRevealTests"
 xcrun swiftc -swift-version 5 -module-cache-path "$ROOT/.build/module-cache" "$ROOT/Sources/Usage.swift" "$ROOT/Tests/UsageTests.swift" -o "$ROOT/.build/UsageTests"
 "$ROOT/.build/UsageTests"
+
+xcrun swiftc -swift-version 5 -module-cache-path "$ROOT/.build/module-cache" "$ROOT/Sources/Usage.swift" "$ROOT/Sources/UsageSources.swift" "$ROOT/Tests/UsageSourceTests.swift" -o "$ROOT/.build/UsageSourceTests"
+"$ROOT/.build/UsageSourceTests"

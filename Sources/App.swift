@@ -202,10 +202,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     }
     @objc func showDashboard() {
         if dashboard == nil {
-            let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 760, height: 820), styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
+            let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 760, height: 680), styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
             window.title = model.identity.dashboardTitle; window.titlebarAppearsTransparent = true
             window.isReleasedWhenClosed = false; window.contentView = NSHostingView(rootView: Dashboard(model: model))
-            window.minSize = NSSize(width: 720, height: 780); window.center(); dashboard = window
+            window.minSize = NSSize(width: 680, height: 560); window.center(); dashboard = window
         }
         NSApp.activate(ignoringOtherApps: true); dashboard?.makeKeyAndOrderFront(nil)
     }

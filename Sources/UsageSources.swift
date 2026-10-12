@@ -25,8 +25,8 @@ final class UsageSources {
         guard let object = readObject(home.appendingPathComponent("Library/Application Support/Claude/plan-usage-history.json")) else { return nil }
         return UsageParser.history(object, account: claudeAccount())
     }
-    func codex() -> (ServiceUsage?, String) {
-        let candidates = ["/Applications/ChatGPT.app/Contents/Resources/codex-cli/CodexCLI.app/Contents/MacOS/codex", "/Applications/ChatGPT.app/Contents/Resources/codex",
+    func codex(executablePath: String? = nil) -> (ServiceUsage?, String) {
+        let candidates = executablePath.map { [$0] } ?? ["/Applications/ChatGPT.app/Contents/Resources/codex-cli/CodexCLI.app/Contents/MacOS/codex", "/Applications/ChatGPT.app/Contents/Resources/codex",
                           home.appendingPathComponent(".local/bin/codex").path, "/opt/homebrew/bin/codex", "/usr/local/bin/codex"]
         guard let path = candidates.first(where: { FileManager.default.isExecutableFile(atPath: $0) }) else { return (nil, "Codex 를 찾을 수 없음") }
         let process = Process(), input = Pipe(), output = Pipe()
@@ -43,6 +43,7 @@ final class UsageSources {
             if process.processIdentifier > 0 { process.waitUntilExit() }
             try? output.fileHandleForReading.close()
         }
+        guard fcntl(input.fileHandleForWriting.fileDescriptor, F_SETNOSIGPIPE, 1) >= 0 else { return (nil, "Codex 연결 실패") }
         do { try process.run() } catch { return (nil, "Codex 연결 실패") }
         let descriptor = output.fileHandleForReading.fileDescriptor
         let flags = fcntl(descriptor, F_GETFL)
