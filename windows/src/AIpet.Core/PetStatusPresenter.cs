@@ -4,7 +4,7 @@ public sealed record PetStatus(WorkState State, string Headline, string Subtitle
 public static class PetStatusPresenter
 {
     public static PetStatus Present(Snapshot snapshot, PetIdentity identity, DateTimeOffset now,
-        bool paused = false, string? selectedID = null, bool dozing = false)
+        bool paused = false, string? selectedID = null, bool dozing = false, string idleSubtitle = "Codex · Claude Code")
     {
         var tasks = snapshot.Tasks; var active = tasks.Count(t => t.State == WorkState.Running);
         var tip = $"AIpet · {identity.Name} · 작업 중 {active}개";
@@ -22,6 +22,6 @@ public static class PetStatusPresenter
             else if (urgent is not null && active > 0) subtitle = $"작업 중: {PetTaskSummary.RunningDetail(tasks)}";
             return new(state, headline, subtitle, alert, tip);
         }
-        return new(WorkState.Idle, tasks.Any(t => t.State == WorkState.Unknown) ? "상태를 확인할 작업이 있어요" : dozing ? identity.DozeHeadline : identity.IdleHeadline, "Codex · Claude Code", null, tip);
+        return new(WorkState.Idle, tasks.Any(t => t.State == WorkState.Unknown) ? "상태를 확인할 작업이 있어요" : dozing ? identity.DozeHeadline : identity.IdleHeadline, idleSubtitle, null, tip);
     }
 }

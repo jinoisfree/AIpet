@@ -17,6 +17,13 @@ public static class CommandEntry
             }
             return true;
         }
+        if (args.Contains("--usage-snapshot"))
+        {
+            Console.OutputEncoding = new UTF8Encoding(false);
+            var state = new UsageSources().Snapshot(new SettingsStore().Load().CodexPath).GetAwaiter().GetResult();
+            Console.WriteLine(JsonData.Sorted(state.Diagnostic(DateTimeOffset.UtcNow), true));
+            return true;
+        }
         if (!args.Contains("--snapshot")) return false;
         Console.OutputEncoding = new UTF8Encoding(false);
         Console.WriteLine(JsonData.Sorted(new StatusMonitor().Poll(forceDiscovery: true), true));

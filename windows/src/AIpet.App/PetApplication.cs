@@ -19,6 +19,8 @@ public sealed class PetApplication : Application
     private static extern bool SetForegroundWindow(IntPtr window);
     private readonly SettingsStore store = new();
     private readonly StatusMonitor monitor = new();
+    private readonly UsageMonitor usage = new(new UsageSources());
+    public UsageState Usage => usage.State;
     private PetSettings settings = new();
     private PetWindow? pet;
     private SpriteAtlas atlas = null!;
@@ -42,13 +44,18 @@ public sealed class PetApplication : Application
     {
         base.OnStartup(e); ShutdownMode = ShutdownMode.OnExplicitShutdown;
         settings = store.Load();
+        usage.Configure(Paused, settings.ClaudeUsageDirectEnabled, settings.CodexPath);
         try
         {
             atlas = new SpriteAtlas(); BuildTray(); CreatePet(); UpdatePet();
         }
         catch (Exception error) { Program.Errors.Append(error); MessageBox.Show(error.Message, "AIpet"); quitting = true; Shutdown(1); return; }
         guardTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
-        guardTimer.Tick += (_, _) => EnsurePet(); guardTimer.Start();
+        guardTimer.Tick += async (_, _) => {
+            EnsurePet(); UpdatePet();
+            await usage.Refresh(DateTimeOffset.UtcNow);
+            if (!quitting) { UpdatePet(); dashboard?.RefreshUsage(); options?.RefreshUsage(); }
+        }; guardTimer.Start();
         pollTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
         pollTimer.Tick += async (_, _) => await Refresh(); pollTimer.Start();
         _ = Refresh();
@@ -163,7 +170,11 @@ public sealed class PetApplication : Application
     }
     private void UpdatePet()
     {
-        var status = PetStatusPresenter.Present(Snapshot, Identity, DateTimeOffset.Now, Paused, SelectedID, pet is { IsAlive: true, IsDozing: true });
+        var subtitle = Usage.Subtitle(DateTimeOffset.UtcNow, lifetime.Elapsed.TotalSeconds, text =>
+            new FormattedText(text, System.Globalization.CultureInfo.CurrentUICulture, FlowDirection.LeftToRight,
+                new Typeface("Segoe UI"), 11, Brushes.DimGray, 1).Width <= 298);
+        var status = PetStatusPresenter.Present(Snapshot, Identity, DateTimeOffset.Now, Paused, SelectedID,
+            pet is { IsAlive: true, IsDozing: true }, subtitle);
         currentStatus = status;
         EnsurePet()?.SetStatus(status);
         // NotifyIcon's native tooltip accepts at most 127 UTF-16 units.
@@ -172,7 +183,7 @@ public sealed class PetApplication : Application
     public void Select(string? id) { SelectedID = id; UpdatePet(); dashboard?.Refresh(); }
     public void TogglePause()
     {
-        Paused = !Paused; EnsurePet()?.SetPaused(Paused); UpdatePet(); dashboard?.Refresh(); if (!Paused) _ = Refresh();
+        Paused = !Paused; usage.Configure(Paused, settings.ClaudeUsageDirectEnabled, settings.CodexPath); EnsurePet()?.SetPaused(Paused); UpdatePet(); dashboard?.Refresh(); if (!Paused) _ = Refresh();
     }
     public void Preview() => Preview(false);
     private void Preview(bool look)
@@ -194,6 +205,11 @@ public sealed class PetApplication : Application
         if (PetIdentity.ValidationMessage(input) is not null) return false;
         settings = settings with { PetName = PetIdentity.Normalized(input) }; if (EnsurePet() is { } window) window.Identity = Identity; Save(); UpdatePet(); dashboard?.Refresh(); return true;
     }
+    public void SetDirectUsage(bool enabled)
+    {
+        settings = settings with { ClaudeUsageDirectEnabled = enabled }; Save();
+        usage.Configure(Paused, enabled, settings.CodexPath); UpdatePet(); dashboard?.RefreshUsage(); options?.RefreshUsage();
+    }
     public void Resize(double percent)
     {
         settings = settings with { PetScale = Math.Clamp(Math.Round(percent), 25, 200) };
@@ -208,7 +224,7 @@ public sealed class PetApplication : Application
     private void Quit() { quitting = true; SavePosition(); Shutdown(); }
     protected override void OnExit(ExitEventArgs e)
     {
-        quitting = true; pollTimer?.Stop(); guardTimer?.Stop(); ReleasePet();
+        quitting = true; usage.Configure(true, settings.ClaudeUsageDirectEnabled, settings.CodexPath); pollTimer?.Stop(); guardTimer?.Stop(); ReleasePet();
         if (tray is not null) { tray.Visible = false; tray.Icon?.Dispose(); tray.Dispose(); }
         menu?.Dispose(); base.OnExit(e);
     }

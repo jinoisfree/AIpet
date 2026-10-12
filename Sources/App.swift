@@ -11,6 +11,17 @@ struct TaesikMain {
             HookBridge.run(provider: provider, destination: destination)
             return
         }
+        if CommandLine.arguments.contains("--usage-snapshot") {
+            let finished = DispatchSemaphore(value: 0)
+            DispatchQueue(label: "com.jinoisfree.taesik.usage.snapshot", qos: .utility).async {
+                let snapshot = UsageSources().snapshot().diagnostic(at: Date())
+                if let data = try? JSONSerialization.data(withJSONObject: snapshot, options: [.prettyPrinted, .sortedKeys]) {
+                    FileHandle.standardOutput.write(data); print("")
+                }
+                finished.signal()
+            }
+            finished.wait(); return
+        }
         if CommandLine.arguments.contains("--snapshot") {
             let snapshot = StatusMonitor().poll(forceDiscovery: true)
             let encoder = JSONEncoder(); encoder.dateEncodingStrategy = .iso8601; encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
@@ -43,6 +54,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     var currentSnapshot: Snapshot?
     let monitor = StatusMonitor()
     let monitorQueue = DispatchQueue(label: "com.jinoisfree.taesik.monitor", qos: .utility)
+    let usageMonitor = UsageMonitor()
+    let usageStarted = Date()
+    var usageTimer: Timer?
+    var usageStatusLabel: NSTextField?
+    var usageAccountsLabel: NSTextField?
+    var smokeMode: Bool { CommandLine.arguments.contains("--ui-smoke") }
     var polling = false
     var bubbleAlert: String?, shownBubbleAlert: String?
     var bubbleMotion = PetBubbleMotion()
@@ -79,7 +96,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         restorePosition()
         panel.orderFrontRegardless()
         NotificationCenter.default.addObserver(self, selector: #selector(screensChanged), name: NSApplication.didChangeScreenParametersNotification, object: nil)
+        if smokeMode { model.usage = UsageState.example(at: Date()); updatePet() }
         refresh()
+        usageTimer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] _ in
+            guard let self else { return }; self.model.usageNow = Date(); self.refreshUsage(); self.updatePet(); self.updateUsageOptions()
+        }
+        refreshUsage()
         timer = Timer.scheduledTimer(withTimeInterval: 2, repeats: true) { [weak self] _ in self?.refresh() }
         if CommandLine.arguments.contains("--show-dashboard") { showDashboard() }
         if let index = CommandLine.arguments.firstIndex(of: "--ui-smoke"), CommandLine.arguments.count > index + 1 {
@@ -96,7 +118,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     }
 
     func refresh() {
-        guard !model.paused, !polling else { return }
+        guard !smokeMode, !model.paused, !polling else { return }
         polling = true
         monitorQueue.async { [weak self] in
             guard let self else { return }
@@ -150,7 +172,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             pet.state = .idle
             let unknown = model.tasks.contains { $0.state == .unknown }
             pet.headline = unknown ? "상태를 확인할 작업이 있어요" : pet.isDozing ? model.identity.dozeHeadline : model.identity.idleHeadline
-            pet.subtitle = "Codex · Claude Code"
+            pet.subtitle = model.usage.subtitle(at: Date(), elapsed: smokeMode ? 0 : Date().timeIntervalSince(usageStarted)) {
+                ($0 as NSString).size(withAttributes: [.font: NSFont.systemFont(ofSize: 11)]).width <= 298
+            }
         }
     }
 
@@ -178,7 +202,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     }
     @objc func showDashboard() {
         if dashboard == nil {
-            let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 710, height: 610), styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
+            let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 760, height: 680), styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
             window.title = model.identity.dashboardTitle; window.titlebarAppearsTransparent = true
             window.isReleasedWhenClosed = false; window.contentView = NSHostingView(rootView: Dashboard(model: model))
             window.minSize = NSSize(width: 680, height: 560); window.center(); dashboard = window
@@ -193,13 +217,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     @objc func togglePet() { if panel.isVisible { panel.orderOut(nil) } else { panel.orderFrontRegardless() } }
     @objc func togglePause() {
         model.paused.toggle(); pet.isPaused = model.paused
-        if !model.paused { refresh() }; updatePet()
+        configureUsage(); if !model.paused { refresh(); refreshUsage() }; updatePet()
     }
     @objc func showOptions() {
         if optionsWindow == nil {
-            let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 360, height: 280), styleMask: [.titled, .closable], backing: .buffered, defer: false)
+            let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 540, height: 530), styleMask: [.titled, .closable], backing: .buffered, defer: false)
             window.title = "AIpet 옵션"; window.isReleasedWhenClosed = false
-            let content = NSView(frame: NSRect(x: 0, y: 0, width: 360, height: 280))
+            let content = NSView(frame: NSRect(x: 0, y: 0, width: 540, height: 530))
             let nameLabel = NSTextField(labelWithString: "펫 이름")
             nameLabel.font = .systemFont(ofSize: 14, weight: .semibold)
             nameLabel.frame = NSRect(x: 24, y: 241, width: 160, height: 20); content.addSubview(nameLabel)
@@ -238,6 +262,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
             let reset = NSButton(title: "기본 크기", target: self, action: #selector(resetPetSize))
             reset.bezelStyle = .rounded; reset.frame = NSRect(x: 247, y: 19, width: 94, height: 32)
             content.addSubview(reset)
+            for view in content.subviews { view.frame.origin.y += 250 }
+            let direct = NSButton(checkboxWithTitle: "Claude 사용량 직접 조회", target: self, action: #selector(toggleDirectUsage(_:)))
+            direct.state = !smokeMode && UserDefaults.standard.bool(forKey: UsageSources.directSettingsKey) ? .on : .off
+            direct.frame = NSRect(x: 24, y: 218, width: 470, height: 24); content.addSubview(direct)
+            let explanation = NSTextField(wrappingLabelWithString: "켜면 키체인 허용 창이 뜰 수 있고 api.anthropic.com 에 사용량을 조회합니다")
+            explanation.font = .systemFont(ofSize: 11); explanation.textColor = .secondaryLabelColor
+            explanation.frame = NSRect(x: 24, y: 172, width: 490, height: 38); content.addSubview(explanation)
+            let status = NSTextField(labelWithString: "마지막 직접 조회: 실행 안 함")
+            status.font = .systemFont(ofSize: 12); status.frame = NSRect(x: 24, y: 139, width: 490, height: 24)
+            content.addSubview(status); usageStatusLabel = status
+            let accounts = NSTextField(wrappingLabelWithString: "추적 계정")
+            accounts.font = .systemFont(ofSize: 12); accounts.frame = NSRect(x: 24, y: 20, width: 490, height: 105)
+            accounts.setAccessibilityElement(false); content.addSubview(accounts); usageAccountsLabel = accounts
             window.contentView = content; window.center()
             optionsWindow = window; sizeSlider = slider; sizeValueLabel = value
         }
@@ -246,7 +283,33 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         petNameField?.stringValue = model.identity.name
         petNameHint?.stringValue = "1~20자 · 저장하면 모든 화면에 적용됩니다."
         petNameHint?.textColor = .secondaryLabelColor
+        updateUsageOptions()
         NSApp.activate(ignoringOtherApps: true); optionsWindow?.makeKeyAndOrderFront(nil)
+    }
+    func configureUsage() {
+        usageMonitor.configure(paused: model.paused || smokeMode, enabled: !smokeMode && UserDefaults.standard.bool(forKey: UsageSources.directSettingsKey))
+    }
+    func refreshUsage() {
+        guard !smokeMode, !model.paused else { return }
+        configureUsage()
+        usageMonitor.refresh { [weak self] state in
+            self?.model.usage = state; self?.updatePet(); self?.updateUsageOptions()
+        }
+    }
+    @objc func toggleDirectUsage(_ sender: NSButton) {
+        guard !smokeMode else { sender.state = .off; return }
+        UserDefaults.standard.set(sender.state == .on, forKey: UsageSources.directSettingsKey)
+        model.usage.directEnabled = sender.state == .on
+        model.usage.direct = nil; model.usage.directSuccess = nil; model.usage.directStatus = .disabled
+        configureUsage(); refreshUsage(); updateUsageOptions(); updatePet()
+    }
+    func updateUsageOptions() {
+        let state = model.usage
+        var text = state.directStatus.rawValue
+        if state.directStatus == .success, let date = state.directSuccess { text += " · " + DateFormatter.localizedString(from: date, dateStyle: .short, timeStyle: .medium) }
+        usageStatusLabel?.stringValue = "마지막 직접 조회: " + text
+        let codex = state.codex?.account, claude = state.claude(at: Date())?.account
+        usageAccountsLabel?.stringValue = "추적 계정\nCodex: \(codex?.label ?? "계정 확인 불가") · \(codex?.detail ?? "—")\nClaude Code: \(claude?.label ?? "계정 확인 불가") · \(claude?.detail ?? "—")"
     }
     @objc func savePetName() {
         guard let field = petNameField else { return }
