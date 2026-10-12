@@ -8,8 +8,8 @@
 
 | 운영체제 | 다운로드 | 상태 |
 |---|---|---|
-| **Mac · Apple Silicon** | [AIpet 1.0.10 ZIP](https://github.com/jinoisfree/AIpet/releases/download/v1.0.10/AIpet-1.0.10-arm64.zip) | 정식 배포본 · macOS 13 이상 빌드 대상 |
-| **Windows · x64** | [AIpet 1.0.10 Preview 1 ZIP](https://github.com/jinoisfree/AIpet/releases/download/windows-v1.0.10-preview.1/AIpet-1.0.10-preview.1-win-x64.zip) · [설치 프로그램](https://github.com/jinoisfree/AIpet/releases/download/windows-v1.0.10-preview.1/AIpet-Setup-win-x64.exe) | 실사용 확인 전 미리보기 · 자체 포함 .NET 런타임 |
+| **Mac · Apple Silicon** | [AIpet 1.0.11 ZIP](https://github.com/jinoisfree/AIpet/releases/download/v1.0.11/AIpet-1.0.11-arm64.zip) | 정식 배포본 · macOS 13 이상 빌드 대상 |
+| **Windows · x64** | [AIpet 1.0.11 Preview 1 ZIP](https://github.com/jinoisfree/AIpet/releases/download/windows-v1.0.11-preview.1/AIpet-1.0.11-preview.1-win-x64.zip) · [설치 프로그램](https://github.com/jinoisfree/AIpet/releases/download/windows-v1.0.11-preview.1/AIpet-Setup-win-x64.exe) | 실사용 확인 전 미리보기 · 자체 포함 .NET 런타임 |
 
 업데이트: Mac은 실행 중인 AIpet을 종료하고 새 `AIpet.app`으로 덮어쓰세요. Windows는 설치 프로그램을 다시 실행하면 기존 설치본을 교체합니다. 두 방식 모두 설정을 유지합니다. Windows ZIP 사용자는 `AIpet.exe`를 종료한 뒤 새 파일로 교체하세요.
 

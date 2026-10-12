@@ -65,7 +65,7 @@ public static class JsonData
             JsonObject o => new JsonObject(o.OrderBy(p => p.Key, StringComparer.Ordinal).Select(p => KeyValuePair.Create(p.Key, Sort(p.Value)))),
             JsonArray a => new JsonArray(a.Select(Sort).ToArray()), _ => n?.DeepClone()
         };
-        return Sort(node)!.ToJsonString(new JsonSerializerOptions(Options) { WriteIndented = indented });
+        return Sort(node)!.ToJsonString(new JsonSerializerOptions(Options) { WriteIndented = indented, Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping });
     }
     public static JsonElement Get(this JsonElement value, string key) => value.ValueKind == JsonValueKind.Object && value.TryGetProperty(key, out var item) ? item : default;
     public static string? String(this JsonElement value) => value.ValueKind == JsonValueKind.String ? value.GetString() : null;
