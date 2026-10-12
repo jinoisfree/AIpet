@@ -1,6 +1,8 @@
 import SwiftUI
 
 final class DashboardModel: ObservableObject {
+    @Published var usage = UsageState()
+    @Published var usageNow = Date()
     @Published var identity = PetIdentity.load()
     @Published var tasks: [WorkItem] = []
     @Published var connections: [ConnectionInfo] = []
@@ -36,6 +38,7 @@ struct Dashboard: View {
                 metric("확인 필요", count: model.tasks.filter { $0.state == .waiting }.count, color: .orange)
                 metric("최근 응답", count: model.tasks.filter { $0.state == .responded }.count, color: .blue)
             }.padding(.bottom, 20)
+            usageSection.padding(.bottom, 14)
             HStack {
                 Text("작업 목록").font(.system(size: 16, weight: .semibold))
                 Spacer()
@@ -98,8 +101,35 @@ struct Dashboard: View {
                     if let date = model.lastScan { Text(date, style: .time).foregroundColor(.secondary) }
                 }.font(.system(size: 10))
             }.padding(.top, 15)
-        }.padding(26).frame(minWidth: 680, minHeight: 560)
+        }.padding(26).frame(minWidth: 720, minHeight: 780)
             .foregroundColor(ink).background(Color(red: 0.95, green: 0.96, blue: 0.93)).environment(\.colorScheme, .light)
+    }
+    private var usageSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("사용량").font(.system(size: 16, weight: .semibold))
+            HStack(alignment: .top, spacing: 12) {
+                usageCard("Codex", usage: model.usage.codex, fallback: model.usage.codexReason)
+                usageCard("Claude Code", usage: model.usage.claude(at: model.usageNow), fallback: model.usage.historyReason)
+            }
+        }
+    }
+    private func usageCard(_ name: String, usage: ServiceUsage?, fallback: String) -> some View {
+        let now = model.usageNow
+        let reason = model.usage.reason(for: usage, fallback: fallback, at: now)
+        return VStack(alignment: .leading, spacing: 4) {
+            Text("\(name) · 남은 사용량").font(.system(size: 12, weight: .semibold))
+            Text("5시간 \(usage?.windowLabel(.fiveHour, at: now) ?? "—") · 주간 \(usage?.windowLabel(.weekly, at: now) ?? "—")").font(.system(size: 13, weight: .medium))
+            ForEach([UsagePeriod.fiveHour, .weekly], id: \.rawValue) { period in
+                if let date = usage?.windows.first(where: { $0.period == period })?.resetsAt {
+                    Text("\(period.rawValue) 초기화: \(DateFormatter.localizedString(from: date, dateStyle: .short, timeStyle: .short))").font(.system(size: 10)).foregroundColor(.secondary)
+                }
+            }
+            Text(usage?.account.label ?? "계정 확인 불가").font(.system(size: 11)).textSelection(.enabled).fixedSize(horizontal: false, vertical: true).accessibilityHidden(true)
+            Text(usage?.account.detail ?? "요금제·조직 확인 불가").font(.system(size: 10)).foregroundColor(.secondary).accessibilityHidden(true)
+            Text(usage?.source.rawValue ?? "조회 대기").font(.system(size: 10)).foregroundColor(.secondary)
+            if let date = usage?.observedAt { Text("마지막 조회: \(DateFormatter.localizedString(from: date, dateStyle: .short, timeStyle: .short))").font(.system(size: 10)).foregroundColor(.secondary) }
+            if !reason.isEmpty { Text(reason).font(.system(size: 10)).foregroundColor(.orange).fixedSize(horizontal: false, vertical: true) }
+        }.frame(maxWidth: .infinity, minHeight: 142, alignment: .topLeading).padding(12).background(Color.white.opacity(0.7)).cornerRadius(12)
     }
     func metric(_ title: String, count: Int, color: Color) -> some View {
         HStack { VStack(alignment: .leading, spacing: 8) {

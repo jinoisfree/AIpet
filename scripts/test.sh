@@ -16,3 +16,5 @@ xcrun swiftc -swift-version 5 -module-cache-path "$ROOT/.build/module-cache" "$R
 bash "$ROOT/scripts/compare_pet_rendering.sh"
 xcrun swiftc -swift-version 5 -module-cache-path "$ROOT/.build/module-cache" "$ROOT/Sources/BubbleReveal.swift" "$ROOT/Tests/BubbleRevealTests.swift" -o "$ROOT/.build/BubbleRevealTests"
 "$ROOT/.build/BubbleRevealTests"
+xcrun swiftc -swift-version 5 -module-cache-path "$ROOT/.build/module-cache" "$ROOT/Sources/Usage.swift" "$ROOT/Tests/UsageTests.swift" -o "$ROOT/.build/UsageTests"
+"$ROOT/.build/UsageTests"
