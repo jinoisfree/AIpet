@@ -1,8 +1,22 @@
 # AIpet
 
-**AIpet**은 Codex와 Claude Code의 작업 상태를 알려 주는 독립형 macOS 데스크톱 펫입니다. AI가 작업하는 동안 태식이가 화면에 머물며 작업 중·확인 필요·응답 종료 등의 상태를 표시합니다.
+**AIpet**은 Codex와 Claude Code의 작업 상태를 알려 주는 독립형 데스크톱 펫입니다. macOS 정식 버전과 Windows 미리보기 버전을 제공합니다. AI가 작업하는 동안 태식이가 화면에 머물며 작업 중·확인 필요·응답 종료 등의 상태를 표시합니다.
 
-현재 앱 버전은 **1.0.9**입니다. Swift, AppKit, SwiftUI로 구현했습니다. 실행할 때 Python, Node.js, API 키가 필요하지 않습니다.
+현재 macOS 소스 버전은 **1.0.9**입니다. Mac 앱은 Swift, AppKit, SwiftUI로, Windows 앱은 C# .NET 8 WPF로 구현했습니다. 실행할 때 Python, Node.js, API 키가 필요하지 않습니다.
+
+## 운영체제별 다운로드
+
+| 운영체제 | 다운로드 | 상태 |
+|---|---|---|
+| **Mac · Apple Silicon** | [AIpet 1.0.7 ZIP](https://github.com/jinoisfree/AIpet/releases/download/v1.0.7/AIpet-1.0.7-arm64.zip) | 기존 정식 배포본 · macOS 13 이상 빌드 대상 |
+| **Windows · x64** | [AIpet 1.0.9 Preview 2 ZIP](https://github.com/jinoisfree/AIpet/releases/download/windows-v1.0.9-preview.2/AIpet-1.0.9-preview.2-win-x64.zip) | 실사용 확인 전 미리보기 · 자체 포함 .NET 런타임 |
+
+Mac은 압축을 풀어 `AIpet.app`을, Windows는 `AIpet.exe`를 실행하세요.
+Windows의 실제 UI·DPI·AI 연동은 아직 사용자 PC에서 확인해야 하며, 서명되지 않은 실행 파일입니다.
+[Windows 사용 안내](windows/README.md) · [검증 범위와 PC 체크리스트](windows/PORTING.md)
+
+아래 기능·지원 환경·빌드 안내는 macOS 기준입니다. Windows에는 AI 대상 창 바라보기,
+외곽 보강, 유리 효과, 자동 훅 설정 도구가 아직 포함되지 않습니다.
 
 ## 주요 기능
 

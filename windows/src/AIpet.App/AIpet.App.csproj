@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <UseWindowsForms>true</UseWindowsForms>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <Nullable>enable</Nullable>
+    <AssemblyName>AIpet</AssemblyName>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>Assets/Generated/AIpet.ico</ApplicationIcon>
+    <StartupObject>AIpet.App.Program</StartupObject>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <!-- WPF owns the DPI manifest. WinForms is used only for the tray/menu, not ApplicationConfiguration. -->
+    <NoWarn>$(NoWarn);WFAC010</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../AIpet.Core/AIpet.Core.csproj" />
+    <Resource Include="Assets/Generated/spritesheet.png" />
+    <Resource Include="Assets/Generated/AIpet.ico" />
+    <Resource Include="../../../Resources/Pet/wave.png" Link="Assets/wave.png" />
+    <Resource Include="../../../Resources/Pet/doze.png" Link="Assets/doze.png" />
+  </ItemGroup>
+  <Target Name="CheckAssets" BeforeTargets="PrepareForBuild">
+    <Error Condition="!Exists('Assets/Generated/spritesheet.png') Or !Exists('Assets/Generated/AIpet.ico')" Text="Run python windows/scripts/prepare_assets.py before building AIpet.App." />
+  </Target>
+</Project>
