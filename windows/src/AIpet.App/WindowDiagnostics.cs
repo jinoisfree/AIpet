@@ -51,6 +51,7 @@ internal sealed class WindowDiagnostics
     }
     [StructLayout(LayoutKind.Sequential)]
     private struct WindowPosition { public IntPtr Handle, InsertAfter; public int X, Y, Width, Height; public uint Flags; }
+    [DllImport("user32.dll")] internal static extern bool IsWindow(IntPtr handle);
     [DllImport("user32.dll")] private static extern IntPtr GetForegroundWindow();
     [DllImport("user32.dll")] private static extern uint GetWindowThreadProcessId(IntPtr handle, out uint pid);
     [DllImport("user32.dll")] private static extern bool IsWindowVisible(IntPtr handle);
