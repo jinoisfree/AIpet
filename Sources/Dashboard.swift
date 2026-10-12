@@ -110,14 +110,14 @@ struct Dashboard: View {
         VStack(alignment: .leading, spacing: 8) {
             Text("사용량").font(.system(size: 16, weight: .semibold))
             HStack(alignment: .top, spacing: 12) {
-                usageCard("Codex", usage: model.usage.codex, fallback: model.usage.codexReason)
-                usageCard("Claude Code", usage: model.usage.claude(at: model.usageNow), fallback: model.usage.historyReason)
+                usageCard("Codex", usage: model.usage.codexUsage, fallback: model.usage.codexFailure(at: model.usageNow))
+                usageCard("Claude Code", usage: model.usage.claude(at: model.usageNow), fallback: model.usage.claudeFailure(at: model.usageNow))
             }
         }
     }
     private func usageCard(_ name: String, usage: ServiceUsage?, fallback: String) -> some View {
         let now = model.usageNow
-        let reason = model.usage.reason(for: usage, fallback: fallback, at: now)
+        let reason = usage?.display(at: now) == "—" || usage == nil ? fallback : ""
         return VStack(alignment: .leading, spacing: 4) {
             Text("\(name) · 남은 사용량").font(.system(size: 12, weight: .semibold))
             Text("5시간 \(usage?.windowLabel(.fiveHour, at: now) ?? "—") · 주간 \(usage?.windowLabel(.weekly, at: now) ?? "—")").font(.system(size: 13, weight: .medium))

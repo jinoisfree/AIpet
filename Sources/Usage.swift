@@ -1,8 +1,8 @@
 import Foundation
 
 enum UsageSource: String, Codable {
-    case codex = "Codex 앱 서버", history = "Claude 앱 기록", direct = "직접 조회"
-    var lifetime: TimeInterval { self == .history ? 1800 : 3600 }
+    case codex = "Codex 앱 서버", codexRecord = "Codex 작업 기록", history = "Claude 앱 기록", direct = "직접 조회"
+    var lifetime: TimeInterval { self == .codexRecord ? 86400 : self == .history ? 1800 : 3600 }
 }
 enum UsagePeriod: String, Codable { case fiveHour = "5시간", weekly = "주간" }
 struct UsageWindow: Codable, Equatable {
@@ -64,6 +64,28 @@ struct UsageCredentials {
 }
 struct UsageState {
     var codex: ServiceUsage?
+    var codexRecord: ServiceUsage?
+    var codexExecutable = "none"
+    var codexUsage: ServiceUsage? { Self.newest(codex, codexRecord) }
+    static func newest(_ first: ServiceUsage?, _ second: ServiceUsage?) -> ServiceUsage? {
+        guard let first else { return second }; guard let second else { return first }
+        return second.observedAt > first.observedAt ? second : first
+    }
+    func codexFailure(at now: Date) -> String {
+        if let usage = codexUsage, usage.display(at: now) != "—" { return "" }
+        if let usage = codexUsage, usage.source == .codexRecord {
+            return usage.valid(at: now) ? "사용량 창 없음 또는 초기화 시각 경과" : "최근 24시간 Codex 작업 기록 없음"
+        }
+        if codexReason == "Codex 를 찾을 수 없음" || codexReason == "Codex 앱 실행 불가" {
+            return codexReason + " · Codex 로 작업하면 기록에서 표시됩니다"
+        }
+        return "최근 24시간 Codex 작업 기록 없음 · " + reason(for: codex, fallback: codexReason, at: now)
+    }
+    func claudeFailure(at now: Date) -> String {
+        if claude(at: now)?.display(at: now) != nil && claude(at: now)?.display(at: now) != "—" { return "" }
+        if directEnabled { return directStatus == .success ? "사용량 창 없음 또는 초기화 시각 경과" : directStatus.rawValue }
+        return "옵션에서 Claude 사용량 직접 조회를 켜세요"
+    }
     var history: ServiceUsage?
     var direct: ServiceUsage?
     var codexReason = "조회 대기"
@@ -78,12 +100,12 @@ struct UsageState {
     static func retaining(_ previous: ServiceUsage?, success: ServiceUsage?) -> ServiceUsage? { success ?? previous }
     func summary(at now: Date, compact: Bool = false) -> String {
         let separator = compact ? "·" : " · "
-        return "Codex \(codex?.display(at: now) ?? "—")\(separator)Claude Code \(claude(at: now)?.display(at: now) ?? "—")"
+        return "Codex \(codexUsage?.display(at: now) ?? "—")\(separator)Claude Code \(claude(at: now)?.display(at: now) ?? "—")"
     }
     func subtitle(at now: Date, elapsed: TimeInterval, fits: (String) -> Bool = { $0.count <= 32 }) -> String {
         let phase = Int(max(0, elapsed).truncatingRemainder(dividingBy: 11))
         if phase < 5 { let text = summary(at: now); return fits(text) ? text : summary(at: now, compact: true) }
-        if phase < 8 { return "Codex \(codex?.account.masked ?? "계정 확인 불가")" }
+        if phase < 8 { return "Codex \(codexUsage?.account.masked ?? "계정 확인 불가")" }
         return "Claude Code \(claude(at: now)?.account.masked ?? "계정 확인 불가")"
     }
     func reason(for usage: ServiceUsage?, fallback: String, at now: Date) -> String {
@@ -106,8 +128,10 @@ struct UsageState {
             return result
         }
         let claude = claude(at: now)
-        return ["codex": service(codex, reason: reason(for: codex, fallback: codexReason, at: now)),
-                "claude": service(claude, reason: reason(for: claude, fallback: historyReason, at: now)), "directQuery": "실행 안 함"]
+        return ["codex": service(codexUsage, reason: codexFailure(at: now)),
+                "codexExecutable": codexExecutable,
+                "codexRecord": service(codexRecord, reason: reason(for: codexRecord, fallback: "최근 24시간 Codex 작업 기록 없음", at: now)),
+                "claude": service(claude, reason: claudeFailure(at: now)), "directQuery": "실행 안 함"]
     }
     static func example(at now: Date) -> UsageState {
         var state = UsageState()
@@ -156,6 +180,20 @@ enum UsageParser {
         guard !windows.isEmpty else { return nil }
         let matches = account.organizationID != nil && sample["org"] as? String == account.organizationID
         return ServiceUsage(source: .history, observedAt: Date(timeIntervalSince1970: time / 1000), windows: windows, account: matches ? account : UsageAccount())
+    }
+    static func codexRecord(_ object: [String: Any]) -> ServiceUsage? {
+        guard object["type"] as? String == "event_msg", let payload = object["payload"] as? [String: Any],
+              payload["type"] as? String == "token_count", let rate = payload["rate_limits"] as? [String: Any],
+              let date = isoDate(object["timestamp"]) else { return nil }
+        let windows = ["primary", "secondary"].compactMap { key -> UsageWindow? in
+            guard let row = rate[key] as? [String: Any], let used = percent(row["used_percent"]),
+                  let minutes = number(row["window_minutes"]), minutes == 300 || minutes == 10080 else { return nil }
+            return UsageWindow(period: minutes == 300 ? .fiveHour : .weekly, used: used,
+                               resetsAt: number(row["resets_at"]).map(Date.init(timeIntervalSince1970:)))
+        }
+        guard !windows.isEmpty else { return nil }
+        return ServiceUsage(source: .codexRecord, observedAt: date, windows: windows,
+                            account: UsageAccount(detail: rate["plan_type"] as? String))
     }
     static func credentials(_ data: Data) -> UsageCredentials? {
         guard let auth = object(data)?["claudeAiOauth"] as? [String: Any], let token = auth["accessToken"] as? String, !token.isEmpty else { return nil }

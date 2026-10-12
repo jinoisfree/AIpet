@@ -3,12 +3,12 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 namespace AIpet.Core;
 
-public enum UsageSource { Codex, History, Direct }
+public enum UsageSource { Codex, History, Direct, CodexRecord }
 public enum UsagePeriod { FiveHour, Weekly }
 public enum DirectUsageStatus { Disabled, Success, Missing, Expired, Unauthorized, Limited, Connection, Denied }
 public static class UsageLabels
 {
-    public static string Label(this UsageSource source) => source switch { UsageSource.Codex => "Codex 앱 서버", UsageSource.History => "Claude 앱 기록", _ => "직접 조회" };
+    public static string Label(this UsageSource source) => source switch { UsageSource.Codex => "Codex 앱 서버", UsageSource.CodexRecord => "Codex 작업 기록", UsageSource.History => "Claude 앱 기록", _ => "직접 조회" };
     public static string Label(this UsagePeriod period) => period == UsagePeriod.FiveHour ? "5시간" : "주간";
     public static string Label(this DirectUsageStatus status) => status switch {
         DirectUsageStatus.Disabled => "실행 안 함", DirectUsageStatus.Success => "성공", DirectUsageStatus.Missing => "로그인 정보 없음",
@@ -32,7 +32,7 @@ public sealed record UsageAccount(string? Email = null, string? Detail = null, b
 }
 public sealed record ServiceUsage(UsageSource Source, DateTimeOffset ObservedAt, IReadOnlyList<UsageWindow> Windows, UsageAccount Account)
 {
-    public bool Valid(DateTimeOffset now) => now >= ObservedAt.AddSeconds(-60) && (now - ObservedAt).TotalSeconds < (Source == UsageSource.History ? 1800 : 3600);
+    public bool Valid(DateTimeOffset now) => now >= ObservedAt.AddSeconds(-60) && (now - ObservedAt).TotalSeconds < (Source == UsageSource.CodexRecord ? 86400 : Source == UsageSource.History ? 1800 : 3600);
     public string Display(DateTimeOffset now)
     {
         if (!Valid(now)) return "—";
@@ -62,6 +62,24 @@ public sealed class UsageCredentials(string token, DateTimeOffset? expiresAt)
 public sealed record UsageState
 {
     public ServiceUsage? Codex { get; init; }
+    public ServiceUsage? CodexRecord { get; init; }
+    public string CodexExecutable { get; init; } = "none";
+    public ServiceUsage? CodexUsage => Newest(Codex, CodexRecord);
+    public static ServiceUsage? Newest(ServiceUsage? first, ServiceUsage? second) => first is null ? second : second is null ? first : second.ObservedAt > first.ObservedAt ? second : first;
+    public string CodexFailure(DateTimeOffset now)
+    {
+        if (CodexUsage is { } value && value.Display(now) != "—") return "";
+        if (CodexUsage is { Source: UsageSource.CodexRecord } record)
+            return record.Valid(now) ? "사용량 창 없음 또는 초기화 시각 경과" : "최근 24시간 Codex 작업 기록 없음";
+        if (CodexReason is "Codex 를 찾을 수 없음" or "Codex 앱 실행 불가") return CodexReason + " · Codex 로 작업하면 기록에서 표시됩니다";
+        return "최근 24시간 Codex 작업 기록 없음 · " + Reason(Codex, CodexReason, now);
+    }
+    public string ClaudeFailure(DateTimeOffset now)
+    {
+        if (Claude(now) is { } value && value.Display(now) != "—") return "";
+        if (DirectEnabled) return DirectStatus == DirectUsageStatus.Success ? "사용량 창 없음 또는 초기화 시각 경과" : DirectStatus.Label();
+        return "옵션에서 Claude 사용량 직접 조회를 켜세요";
+    }
     public ServiceUsage? History { get; init; }
     public ServiceUsage? Direct { get; init; }
     public string CodexReason { get; init; } = "조회 대기";
@@ -71,12 +89,12 @@ public sealed record UsageState
     public bool DirectEnabled { get; init; }
     public ServiceUsage? Claude(DateTimeOffset now) => DirectEnabled && Direct is { } direct && direct.Display(now) != "—" ? direct : History;
     public static ServiceUsage? Retaining(ServiceUsage? previous, ServiceUsage? success) => success ?? previous;
-    public string Summary(DateTimeOffset now, bool compact = false) => $"Codex {Codex?.Display(now) ?? "—"}{(compact ? "·" : " · ")}Claude Code {Claude(now)?.Display(now) ?? "—"}";
+    public string Summary(DateTimeOffset now, bool compact = false) => $"Codex {CodexUsage?.Display(now) ?? "—"}{(compact ? "·" : " · ")}Claude Code {Claude(now)?.Display(now) ?? "—"}";
     public string Subtitle(DateTimeOffset now, double elapsed, Func<string, bool>? fits = null)
     {
         var phase = Math.Max(0, elapsed) % 11;
         if (phase < 5) { var text = Summary(now); return (fits?.Invoke(text) ?? new StringInfo(text).LengthInTextElements <= 32) ? text : Summary(now, true); }
-        return phase < 8 ? $"Codex {Codex?.Account.Masked ?? "계정 확인 불가"}" : $"Claude Code {Claude(now)?.Account.Masked ?? "계정 확인 불가"}";
+        return phase < 8 ? $"Codex {CodexUsage?.Account.Masked ?? "계정 확인 불가"}" : $"Claude Code {Claude(now)?.Account.Masked ?? "계정 확인 불가"}";
     }
     public string Reason(ServiceUsage? usage, string fallback, DateTimeOffset now)
     {
@@ -88,7 +106,7 @@ public sealed record UsageState
     {
         Dictionary<string, object> Service(ServiceUsage? usage, string fallback)
         {
-            var result = new Dictionary<string, object> { ["display"] = usage?.Display(now) ?? "—", ["account"] = usage?.Account.Masked ?? "계정 확인 불가", ["reason"] = Reason(usage, fallback, now) };
+            var result = new Dictionary<string, object> { ["display"] = usage?.Display(now) ?? "—", ["account"] = usage?.Account.Masked ?? "계정 확인 불가", ["reason"] = fallback };
             if (usage is not null)
             {
                 result["source"] = usage.Source.Label(); result["observedAt"] = usage.ObservedAt;
@@ -96,7 +114,7 @@ public sealed record UsageState
             }
             return result;
         }
-        return new { codex = Service(Codex, CodexReason), claude = Service(Claude(now), HistoryReason), directQuery = "실행 안 함" };
+        return new { codex = Service(CodexUsage, CodexFailure(now)), codexExecutable = CodexExecutable, codexRecord = Service(CodexRecord, Reason(CodexRecord, "최근 24시간 Codex 작업 기록 없음", now)), claude = Service(Claude(now), ClaudeFailure(now)), directQuery = "실행 안 함" };
     }
 }
 public static class UsageParser
@@ -146,6 +164,19 @@ public static class UsageParser
             if (Percent(Get(values, key)) is { } used) windows.Add(new(period, used));
         var matches = account.OrganizationID is not null && Text(Get(sample, "org")) == account.OrganizationID;
         return windows.Count == 0 ? null : new(UsageSource.History, time, windows, matches ? account : new());
+    }
+    public static ServiceUsage? CodexRecord(JsonElement value)
+    {
+        if (value.String("type") != "event_msg" || value.Get("payload").String("type") != "token_count" || Dates.Parse(value.String("timestamp")) is not { } date) return null;
+        var rate = value.Get("payload").Get("rate_limits"); if (rate.ValueKind != JsonValueKind.Object) return null;
+        var root = Object(rate.GetRawText()); var windows = new List<UsageWindow>();
+        foreach (var key in new[] { "primary", "secondary" })
+        {
+            var row = Get(root, key); var minutes = Number(Get(row, "window_minutes"));
+            if (Percent(Get(row, "used_percent")) is { } used && minutes is 300 or 10080)
+                windows.Add(new(minutes == 300 ? UsagePeriod.FiveHour : UsagePeriod.Weekly, used, Epoch(Number(Get(row, "resets_at")))));
+        }
+        return windows.Count == 0 ? null : new(UsageSource.CodexRecord, date, windows, new(Detail: Text(Get(root, "plan_type"))));
     }
     public static UsageCredentials? Credentials(string text)
     {

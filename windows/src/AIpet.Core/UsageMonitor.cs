@@ -11,6 +11,7 @@ public sealed class UsageMonitor(IUsageSources sources)
     private int generation;
     private DateTimeOffset codexDue, historyDue, directDue;
     public UsageState State { get { lock (gate) return state; } }
+    public void SetCodexRecord(ServiceUsage? value) { lock (gate) state = state with { CodexRecord = value }; }
     public void Configure(bool pause, bool directEnabled, string? path = null)
     {
         lock (gate)
@@ -42,7 +43,7 @@ public sealed class UsageMonitor(IUsageSources sources)
                 if (codex && Current())
                 {
                     var result = await sources.Codex(path).ConfigureAwait(false);
-                    next = next with { Codex = UsageState.Retaining(next.Codex, result.Value), CodexReason = result.Reason };
+                    next = next with { Codex = UsageState.Retaining(next.Codex, result.Value), CodexReason = result.Reason, CodexExecutable = sources.CodexExecutable };
                 }
                 if (history && Current()) next = next with { History = UsageState.Retaining(next.History, sources.History()) };
                 if (direct && Allowed())
@@ -55,7 +56,7 @@ public sealed class UsageMonitor(IUsageSources sources)
             lock (gate)
             {
                 if (paused || generation != version) return false;
-                state = next;
+                state = next with { CodexRecord = state.CodexRecord };
                 if (codex) codexDue = now.AddSeconds(300);
                 if (history) historyDue = now.AddSeconds(30);
                 if (direct) directDue = now.AddSeconds(retry.Interval(next.DirectStatus));

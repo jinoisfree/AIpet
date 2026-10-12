@@ -36,19 +36,23 @@ public sealed record UsagePaths(string Home, string Roaming, string Local, strin
 }
 public interface IUsageSources
 {
+    string CodexExecutable => "none";
     Task<(ServiceUsage? Value, string Reason)> Codex(string? configured);
     ServiceUsage? History();
     Task<(ServiceUsage? Value, DirectUsageStatus Status)> Direct(Func<bool> allowed);
 }
 public sealed class UsageSources : IUsageSources
 {
+    public string CodexExecutable { get; private set; } = "none";
+    private readonly Func<IEnumerable<string>> storeRoots;
+    private readonly string codexRoot;
     private readonly UsagePaths paths;
     private readonly Func<string, Task<(JsonNode? Account, JsonNode? Limits)>> runner;
     private readonly Func<string, Task<(int Status, string Data)>> request;
     public UsageSources(UsagePaths? paths = null,
         Func<string, Task<(JsonNode? Account, JsonNode? Limits)>>? runner = null,
-        Func<string, Task<(int Status, string Data)>>? request = null)
-    { this.paths = paths ?? UsagePaths.Default(); this.runner = runner ?? CodexUsageProcess.Query; this.request = request ?? UsageHttp.Request; }
+        Func<string, Task<(int Status, string Data)>>? request = null, Func<IEnumerable<string>>? storeRoots = null)
+    { this.paths = paths ?? UsagePaths.Default(); codexRoot = Path.Combine((paths is null ? Environment.GetEnvironmentVariable("CODEX_HOME") : null) ?? Path.Combine(this.paths.Home, ".codex"), "sessions"); this.storeRoots = storeRoots ?? CodexStorePackages.Paths; this.runner = runner ?? CodexUsageProcess.Query; this.request = request ?? UsageHttp.Request; }
     private static string? Read(string path, int limit)
     {
         using var file = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
@@ -76,12 +80,16 @@ public sealed class UsageSources : IUsageSources
     {
         try
         {
+            CodexExecutable = "none";
             var path = paths.CodexCandidates(configured).FirstOrDefault(File.Exists);
+            if (path is not null) CodexExecutable = path == configured ? "configured" : path == Path.Combine(paths.Roaming, "npm", "codex.cmd") ? "npm" : "path";
+            else { path = CodexStorePackages.Executables(storeRoots).FirstOrDefault(); if (path is not null) CodexExecutable = "store"; }
             if (path is null) return (null, "Codex 를 찾을 수 없음");
             var result = await runner(path).ConfigureAwait(false);
             var value = UsageParser.Codex(result.Account, result.Limits, DateTimeOffset.UtcNow);
             return (value, value is null ? "Codex 사용량 조회 실패" : "");
         }
+        catch (Exception error) when (error is CodexStartException or UnauthorizedAccessException) { return (null, "Codex 앱 실행 불가"); }
         catch { return (null, "Codex 연결 실패"); }
     }
     public async Task<(ServiceUsage? Value, DirectUsageStatus Status)> Direct(Func<bool> allowed)
@@ -105,9 +113,13 @@ public sealed class UsageSources : IUsageSources
     public async Task<UsageState> Snapshot(string? configured = null)
     {
         var codex = await Codex(configured).ConfigureAwait(false);
-        return new() { Codex = codex.Value, CodexReason = codex.Reason, History = History() };
+        var monitor = new StatusMonitor(codexRoot: codexRoot,
+            claudeRoot: Path.Combine(paths.ClaudeConfig ?? Path.Combine(paths.Home, ".claude"), "projects"), eventRoot: Path.Combine(paths.Local, "AIpet", "events"));
+        monitor.Poll(forceDiscovery: true);
+        return new() { Codex = codex.Value, CodexRecord = monitor.LatestCodexUsage, CodexReason = codex.Reason, CodexExecutable = CodexExecutable, History = History() };
     }
 }
+public sealed class CodexStartException : Exception { public CodexStartException() : base("Codex 앱 실행 불가") { } }
 public static class CodexUsageProcess
 {
     public static ProcessStartInfo StartInfo(string executable)
@@ -130,11 +142,11 @@ public static class CodexUsageProcess
         using var process = new Process { StartInfo = StartInfo(executable) }; Task? drain = null;
         try
         {
-            if (!process.Start()) return (null, null);
+            try { if (!process.Start()) throw new CodexStartException(); } catch { throw new CodexStartException(); }
             // Drain stderr without retaining it. Never forward child output to error.log.
             drain = process.StandardError.BaseStream.CopyToAsync(Stream.Null, cancel);
             async Task Send(object message) { await process.StandardInput.WriteLineAsync(System.Text.Json.JsonSerializer.Serialize(message).AsMemory(), cancel).ConfigureAwait(false); await process.StandardInput.FlushAsync(cancel).ConfigureAwait(false); }
-            await Send(new { id = 1, method = "initialize", @params = new { clientInfo = new { name = "aipet", version = "1.0.10" } } }).ConfigureAwait(false);
+            await Send(new { id = 1, method = "initialize", @params = new { clientInfo = new { name = "aipet", version = "1.0.11" } } }).ConfigureAwait(false);
             var output = process.StandardOutput.BaseStream; var buffer = new byte[8192]; using var line = new MemoryStream();
             var total = 0; var initialized = false; JsonNode? account = null, limits = null;
             while (true)
@@ -161,6 +173,7 @@ public static class CodexUsageProcess
             }
             return (null, null);
         }
+        catch (CodexStartException) { throw; }
         catch { return (null, null); }
         finally
         {

@@ -3,6 +3,7 @@ namespace AIpet.Core;
 
 public sealed class StatusMonitor
 {
+    public ServiceUsage? LatestCodexUsage { get; private set; }
     public string CodexRoot { get; }
     public string ClaudeRoot { get; }
     public string EventRoot { get; }
@@ -24,6 +25,7 @@ public sealed class StatusMonitor
         var date = now ?? DateTimeOffset.UtcNow;
         if (forceDiscovery || (date - lastDiscovery).TotalSeconds >= 15) { Discover(date); lastDiscovery = date; }
         foreach (var tail in tails.Values) foreach (var item in tail.Read()) Merge(item);
+        LatestCodexUsage = tails.Values.Where(t => t.LastError is null).Select(t => t.Decoder.LatestUsage).OfType<ServiceUsage>().OrderByDescending(u => u.ObservedAt).FirstOrDefault();
         ReadHookEvents(date);
         foreach (var id in records.Where(p => (date - p.Value.UpdatedAt).TotalSeconds > 86400).Select(p => p.Key).ToArray()) records.Remove(id);
         var tasks = records.Values.Select(i => i.Effective(date)).OrderByDescending(i => i.State.Rank()).ThenByDescending(i => i.UpdatedAt).ThenBy(i => i.Id, StringComparer.Ordinal).ToArray();

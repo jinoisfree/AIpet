@@ -1,6 +1,7 @@
 import Foundation
 
 final class StatusMonitor {
+    private(set) var latestCodexUsage: ServiceUsage?
     let codexRoot: URL
     let claudeRoot: URL
     let eventRoot: URL
@@ -27,6 +28,7 @@ final class StatusMonitor {
         for tail in tails.values {
             for item in tail.read() { merge(item) }
         }
+        latestCodexUsage = tails.values.filter { $0.lastError == nil }.compactMap { $0.decoder.latestUsage }.max { $0.observedAt < $1.observedAt }
         readHookEvents(now: now)
         records = records.filter { now.timeIntervalSince($0.value.updatedAt) <= 86400 }
         let tasks = records.values.map { $0.effective(at: now) }.sorted {
