@@ -190,6 +190,11 @@ WPF 실행·Win32 입력/트레이·DPI·Windows의 훅 실행과 실시간 상�
 
 아래는 **미검증** 항목이다. 100%와 150% 배율 각각에서 확인한다.
 
+- [ ] 코덱스 앱의 펫을 숨겨도 AIpet이 남아 있다.
+- [ ] AIpet 메뉴로 숨긴 펫은 다시 나타나지 않는다(최소 5초 확인).
+- [ ] AIpet 종료가 정상 동작하며 펫과 트레이가 함께 사라진다.
+- [ ] 가상 데스크톱 전환 시 다른 데스크톱의 펫을 강제로 불러오지 않는다.
+- [ ] 사라짐이 재발하면 `%LOCALAPPDATA%\AIpet\window.log`와 트레이 잔존 여부를 전달한다.
 - [ ] AIpet.exe 실행 시 펫과 트레이가 나타나고 별도 콘솔·작업 표시줄 항목은 생기지 않는다.
 - [ ] 두 번째 실행이 펫을 추가로 띄우지 않는다. Alt+Tab에 펫 창은 나타나지 않는다.
 - [ ] 다른 앱에서 입력하는 동안 펫/말풍선 갱신이 키보드 포커스를 뺏지 않는다.
@@ -282,3 +287,36 @@ Get-ChildItem $eventRoot -Filter *.json | Get-Content
 - `git status --short --untracked-files=all`: windows/와 기존 .github/workflows/windows.yml만 표시.
   `git diff --exit-code`: 0. 이번에는 workflow 파일을 수정하지 않았다.
 - 기존 생성 자산을 사용했다. 자산 재생성·Windows 실행·GitHub Actions 실행·커밋·푸시는 하지 않았다.
+
+
+## 외부 숨김 방어와 창 진단
+
+사용자 보고인 “코덱스 앱의 펫을 숨기면 AIpet도 사라짐”의 원인은 **미확인**이다.
+코덱스 펫 상태와의 직접 연동은 없으며, 이번 수정은 원인 확정이 아닌 방어·진단이다.
+
+- PetWindow.IntendedVisible로 시작·메뉴·미리보기의 표시 의도를 추적한다. 메뉴 토글은
+  현재 OS 상태 대신 이 의도를 기준으로 한다. 사용자의 숨김 의도는 자동 복구하지 않는다.
+- Closing은 앱의 quitting이 아닌 경우 취소한다. Quit/예외 종료/OnExit의 종료 상태에서는
+  방어와 감시가 개입하지 않는다.
+- 숨김 반환 전에 약 1초마다 Win32 visible/minimized/topmost 및 DWM cloaked를 읽는다.
+  숨김/최소화는 SW_SHOWNOACTIVATE로, 최상위 해제는 HWND_TOPMOST + NOACTIVATE로 복구한다.
+  WPF Visibility/WindowState도 맞추고 렌더 캐시를 비운다. cloaked는 기록만 한다.
+- WM_CLOSE, WM_SHOWWINDOW, 닫기/최소화 WM_SYSCOMMAND, 창 순서/숨김 변경, WM_DESTROY 및
+  복구 전후 상태를 window.log에 기록한다. 시작 시 초기 생성 이벤트와 앱의 표시·숨김·이동·복구
+  호출 중 발생한 메시지 및 종료 중 메시지는 제외한다.
+- 로그는 시각·이벤트 이름·플래그·전경 프로세스 이름만 기록하며 제목·명령줄·대화/기록 본문을
+  읽거나 저장하지 않는다. 전경 프로세스는 관측 당시 정보이며 요청 발신자의 증거가 아니다.
+- 로그 한도는 256 KiB다. ErrorLog와 공용 BoundedLogFile을 사용하고, 이벤트 종류별로
+  초당 1건 이하로 제한한다(서로 다른 메시지가 번갈아 반복될 때도 각 종류의 빈도를 제한).
+  쓰기 실패는 무시하며 error.log의 기존 1 MiB 한도는 유지한다.
+- 프로세스 강제 종료나 HWND 파괴까지 복원하지는 못한다. 모든 실제 Win32 메시지 수신,
+  다른 앱과의 상호작용, 종료·가상 데스크톱 동작은 사용자 PC에서 확인해야 한다.
+
+변경 파일: Core/WindowGuard.cs, BoundedLogFile.cs, WindowLog.cs, ErrorLog.cs;
+App/WindowDiagnostics.cs, PetWindow.cs, PetApplication.cs;
+Tests/WindowGuardTests.cs; windows/README.md, windows/PORTING.md.
+
+로컬 검증: Release 빌드 경고 0·오류 0, 테스트 통과 47·실패 0·건너뜀 0(기존 37+추가 10).
+추가 검사는 표시 의도·외부 숨김·최소화·최상위 해제·cloaked 분기 및 로그 필드/빈도/크기/UTF-8/실패를 검증한다.
+실제 Windows 재현 해결 여부는 아직 확인하지 않았다. 이 변경은 브랜치와 CI 아티팩트로만 제공하며,
+기존 preview.1 릴리스는 갱신하지 않는다.

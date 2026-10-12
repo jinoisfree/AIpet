@@ -8,6 +8,12 @@ namespace AIpet.App;
 public sealed class PetWindow : Window
 {
     private readonly SpriteAtlas atlas;
+    private readonly Func<bool> isQuitting;
+    private readonly WindowDiagnostics diagnostics = new();
+    private int ownWindowChangeDepth;
+    private bool visibilityInitialized;
+    private double lastGuardCheck = double.NegativeInfinity;
+    public bool IntendedVisible { get; private set; }
     private readonly PetSurface surface;
     private readonly DispatcherTimer timer;
     private readonly Stopwatch clock = Stopwatch.StartNew();
@@ -39,13 +45,18 @@ public sealed class PetWindow : Window
     private int? previewRow;
     private PetRenderState? renderedState;
     public double DotOpacity { get; private set; } = 1;
-    public PetWindow(SpriteAtlas atlas)
+    public PetWindow(SpriteAtlas atlas, Func<bool> isQuitting)
     {
-        this.atlas = atlas;
+        this.atlas = atlas; this.isQuitting = isQuitting;
         WindowStyle = WindowStyle.None; AllowsTransparency = true; Background = Brushes.Transparent;
         Topmost = true; ShowInTaskbar = false; ShowActivated = false; ResizeMode = ResizeMode.NoResize;
         Width = 354; Height = 320;
         surface = new PetSurface(this, atlas); Content = surface;
+        Closing += (_, e) => {
+            if (this.isQuitting()) return;
+            e.Cancel = true;
+            diagnostics.Record("CLOSING_CANCELLED", $"intendedVisible={IntendedVisible}");
+        };
         SourceInitialized += (_, _) => {
             var handle = new WindowInteropHelper(this).Handle;
             SetWindowLongPtr(handle, -20, new IntPtr(GetWindowLongPtr(handle, -20).ToInt64() | 0x80 | 0x08000000));
@@ -78,9 +89,63 @@ public sealed class PetWindow : Window
     }
     private IntPtr WindowMessage(IntPtr hwnd, int message, IntPtr wParam, IntPtr lParam, ref bool handled)
     {
+        if (visibilityInitialized && ownWindowChangeDepth == 0 && !isQuitting()) diagnostics.Observe(message, wParam, lParam);
         if (message == 0x0021) { handled = true; return new IntPtr(3); } // MA_NOACTIVATE
         if (message is 0x007E or 0x02E0) Dispatcher.BeginInvoke(new Action(Constrain)); // display/DPI change
         return IntPtr.Zero;
+    }
+    private void OwnWindowChange(Action action)
+    {
+        ownWindowChangeDepth++;
+        try { action(); }
+        finally { ownWindowChangeDepth--; }
+    }
+    public void SetIntendedVisible(bool visible)
+    {
+        IntendedVisible = visible; visibilityInitialized = true;
+        if (isQuitting()) return;
+        OwnWindowChange(() => {
+            if (visible)
+            {
+                WindowState = WindowState.Normal;
+                Show();
+                WindowDiagnostics.ShowWithoutActivation(new WindowInteropHelper(this).Handle);
+                Constrain();
+            }
+            else Hide();
+        });
+        renderedState = null;
+    }
+    private void CheckWindowGuard(double now)
+    {
+        if (isQuitting() || now - lastGuardCheck < 1) return;
+        lastGuardCheck = now;
+        var handle = new WindowInteropHelper(this).Handle;
+        if (handle == IntPtr.Zero) return;
+        var before = WindowDiagnostics.Read(handle);
+        var actions = WindowGuard.Decide(IntendedVisible, before.Visible, before.Minimized, before.Topmost, before.Cloaked != 0);
+        if (actions == WindowRecovery.LogCloaked)
+        {
+            diagnostics.Record("GUARD_CLOAKED", before.ToString());
+            return;
+        }
+        if (IntendedVisible && !IsVisible) actions |= WindowRecovery.Show;
+        if (actions == WindowRecovery.None) return;
+        OwnWindowChange(() => {
+            if ((actions & WindowRecovery.Show) != 0)
+            {
+                WindowState = WindowState.Normal;
+                Visibility = Visibility.Visible;
+                WindowDiagnostics.ShowWithoutActivation(handle);
+            }
+            if ((actions & WindowRecovery.RestoreTopmost) != 0)
+            {
+                Topmost = true;
+                WindowDiagnostics.RestoreTopmost(handle);
+            }
+        });
+        renderedState = null;
+        diagnostics.Record("GUARD_RECOVERY", $"actions={actions}; before: {before}; after: {WindowDiagnostics.Read(handle)}");
     }
     public void SetStatus(PetStatus status)
     {
@@ -139,12 +204,12 @@ public sealed class PetWindow : Window
         if (placement == Placement) return;
         Placement = placement;
         surface.Width = placement.WindowFrame.Width; surface.Height = placement.WindowFrame.Height;
-        Screen.Place(this, placement.WindowFrame);
+        OwnWindowChange(() => Screen.Place(this, placement.WindowFrame));
     }
     public void Preview(bool look)
     {
         preview = true; previewLook = look; previewStarted = Now; previewRow = null; animationStarted = Now;
-        if (!IsVisible) Show();
+        SetIntendedVisible(true);
     }
     public (string Headline, string Subtitle) Text
     {
@@ -159,6 +224,7 @@ public sealed class PetWindow : Window
     private void Tick()
     {
         var now = Now; var dt = Math.Clamp(now - lastTick, 0, 0.1); lastTick = now;
+        CheckWindowGuard(now);
         if (!IsVisible || Placement is null) { pointer.Reset(); return; }
         AdvancePlacement(); var p = Placement!; var interaction = atlas.InteractionRect(p.GlobalSprite); var mouse = Screen.Cursor;
         hovering = interaction.Contains(mouse) || hovering && BubbleShown && interaction.Union(p.GlobalBubble).Contains(mouse);

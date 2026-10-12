@@ -34,7 +34,7 @@ public sealed class PetApplication : Application
     {
         base.OnStartup(e); ShutdownMode = ShutdownMode.OnExplicitShutdown;
         settings = store.Load();
-        try { pet = new PetWindow(new SpriteAtlas()) { Identity = Identity }; }
+        try { pet = new PetWindow(new SpriteAtlas(), () => quitting) { Identity = Identity }; }
         catch (Exception error) { Program.Errors.Append(error); MessageBox.Show(error.Message, "AIpet"); Shutdown(1); return; }
         pet.OpenDashboard += ShowDashboard;
         pet.OpenMenu += () => { SetForegroundWindow(menu.Handle); menu.Show(Forms.Cursor.Position); };
@@ -42,7 +42,7 @@ public sealed class PetApplication : Application
         BuildTray();
         // EnsureHandle raises SourceInitialized: styles and the message hook are installed before Restore.
         new WindowInteropHelper(pet).EnsureHandle();
-        pet.Restore(settings); UpdatePet(); pet.Show();
+        pet.Restore(settings); UpdatePet(); pet.SetIntendedVisible(true);
         pollTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
         pollTimer.Tick += async (_, _) => await Refresh(); pollTimer.Start();
         _ = Refresh();
@@ -52,7 +52,7 @@ public sealed class PetApplication : Application
         menu = new Forms.ContextMenuStrip();
         void Item(string label, Action action) { menu.Items.Add(label, null, (_, _) => Dispatcher.Invoke(action)); }
         Item("작업 목록 열기", ShowDashboard);
-        Item("펫 보이기 / 숨기기", () => { if (pet.IsVisible) pet.Hide(); else { pet.Show(); pet.Constrain(); } });
+        Item("펫 보이기 / 숨기기", () => pet.SetIntendedVisible(!pet.IntendedVisible));
         Item("잠시 쉬기 / 다시 시작", TogglePause);
         var bubbleItem = new Forms.ToolStripMenuItem("말풍선 항상 보이기") { Checked = settings.BubbleAlwaysShown, CheckOnClick = true };
         bubbleItem.Click += (_, _) => { pet.AlwaysShown = bubbleItem.Checked; settings = settings with { BubbleAlwaysShown = bubbleItem.Checked }; Save(); };
