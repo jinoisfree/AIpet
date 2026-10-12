@@ -133,8 +133,18 @@ public sealed class UsageSourceTests : TestSupport
         var account = """{"id":2,"result":{"account":{"email":"synthetic@example.com","planType":"example"}}}""";
         var limits = """{"id":3,"result":{"rateLimits":{"primary":{"usedPercent":28,"windowDurationMins":300},"secondary":null}}}""";
         var script = OperatingSystem.IsWindows()
-            ? "@echo off\r\nset /p init=\r\necho {\"id\":1,\"result\":{}}\r\nset /p notification=\r\nset /p account=\r\nset /p limits=\r\necho " + account + "\r\necho " + limits + "\r\n"
+            ? "@echo off\r\npowershell -NoProfile -ExecutionPolicy Bypass -File \"%~dp0server.ps1\"\r\n"
             : "#!/bin/sh\nread -r init\nprintf '%s\\n' '{\"id\":1,\"result\":{}}'\nread -r notification\nread -r account\nread -r limits\nprintf '%s\\n' '" + account + "' '" + limits + "'\n";
+        if (OperatingSystem.IsWindows())
+        {
+            // Console.ReadLine preserves buffered lines; cmd set /p can discard piped input.
+            var server = "[Console]::In.ReadLine() | Out-Null\r\n"
+                + "[Console]::Out.WriteLine('{\"id\":1,\"result\":{}}')\r\n[Console]::Out.Flush()\r\n"
+                + "1..3 | ForEach-Object { [Console]::In.ReadLine() | Out-Null }\r\n"
+                + "[Console]::Out.WriteLine('" + account + "')\r\n"
+                + "[Console]::Out.WriteLine('" + limits + "')\r\n[Console]::Out.Flush()\r\n";
+            File.WriteAllText(Path.Combine(directory, "server.ps1"), server);
+        }
         File.WriteAllText(executable, script);
         if (!OperatingSystem.IsWindows()) File.SetUnixFileMode(executable, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
         var result = await CodexUsageProcess.Query(executable);
