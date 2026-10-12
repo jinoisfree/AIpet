@@ -22,6 +22,16 @@ jobs:
       - run: python windows/scripts/prepare_assets.py
       - run: dotnet test windows/AIpet.sln -c Release
       - run: dotnet publish windows/src/AIpet.App -c Release -r win-x64 --self-contained -p:PublishSingleFile=true -o windows/artifacts/win-x64
+      - name: Build Windows installer
+        shell: pwsh
+        run: |
+          $compiler = "${env:ProgramFiles(x86)}/Inno Setup 6/ISCC.exe"
+          if (!(Test-Path $compiler)) { throw 'Inno Setup 6 compiler is not installed on this runner.' }
+          & $compiler windows/installer/AIpet.iss
+          if ($LASTEXITCODE -ne 0) { throw 'Installer compilation failed.' }
+      - name: Test install and upgrade
+        shell: pwsh
+        run: ./windows/scripts/test_installer.ps1
       - name: Package Windows preview
         shell: pwsh
         run: |
@@ -33,10 +43,13 @@ jobs:
           Compress-Archive -Path "$package/*" -DestinationPath $archive
           $hash = (Get-FileHash $archive -Algorithm SHA256).Hash.ToLowerInvariant()
           "$hash  AIpet-1.0.9-preview.1-win-x64.zip" | Set-Content windows/artifacts/SHA256SUMS -Encoding ascii
+          $setupHash = (Get-FileHash windows/artifacts/AIpet-Setup-win-x64.exe -Algorithm SHA256).Hash.ToLowerInvariant()
+          "$setupHash  AIpet-Setup-win-x64.exe" | Add-Content windows/artifacts/SHA256SUMS -Encoding ascii
       - uses: actions/upload-artifact@v4
         with:
           name: AIpet-win-x64
           path: |
             windows/artifacts/AIpet-1.0.9-preview.1-win-x64.zip
+            windows/artifacts/AIpet-Setup-win-x64.exe
             windows/artifacts/SHA256SUMS
           if-no-files-found: error
