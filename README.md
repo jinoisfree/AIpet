@@ -9,7 +9,7 @@
 | 운영체제 | 다운로드 | 상태 |
 |---|---|---|
 | **Mac · Apple Silicon** | [AIpet 1.0.7 ZIP](https://github.com/jinoisfree/AIpet/releases/download/v1.0.7/AIpet-1.0.7-arm64.zip) | 기존 정식 배포본 · macOS 13 이상 빌드 대상 |
-| **Windows · x64** | [AIpet 1.0.9 미리보기 ZIP](https://github.com/jinoisfree/AIpet/releases/download/windows-v1.0.9-preview.1/AIpet-1.0.9-preview.1-win-x64.zip) | 실사용 확인 전 미리보기 · 자체 포함 .NET 런타임 |
+| **Windows · x64** | [AIpet 1.0.9 Preview 2 ZIP](https://github.com/jinoisfree/AIpet/releases/download/windows-v1.0.9-preview.2/AIpet-1.0.9-preview.2-win-x64.zip) | 실사용 확인 전 미리보기 · 자체 포함 .NET 런타임 |
 
 Mac은 압축을 풀어 `AIpet.app`을, Windows는 `AIpet.exe`를 실행하세요.
 Windows의 실제 UI·DPI·AI 연동은 아직 사용자 PC에서 확인해야 하며, 서명되지 않은 실행 파일입니다.

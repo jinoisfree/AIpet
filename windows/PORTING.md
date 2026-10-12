@@ -82,7 +82,7 @@ xUnit에서 Skip 처리해 통과로 숨기지 않고 이 목록으로 남긴다
 
 공식 `https://dot.net/v1/dotnet-install.sh`의 `--channel 8.0 --install-dir "$HOME/.dotnet" --no-path`
 설치가 성공했다. 사용한 SDK는 **8.0.425**, 실행 파일은
-`/Users/mac-mini-m4-homeserver/.dotnet/dotnet`이다. sudo/brew/전역 설치는 사용하지 않았다.
+`~/.dotnet/dotnet`이다. sudo/brew/전역 설치는 사용하지 않았다.
 
 - 위 SDK로 `dotnet build windows/AIpet.sln -c Release`: 경고 **0**, 오류 **0**.
 - `dotnet test windows/AIpet.sln -c Release`: 통과 **22**, 실패 **0**, 건너뜀 **0**.
@@ -153,7 +153,7 @@ Windows의 실제 Codex·Claude 기록 경로와 출력은 사용자 PC에서 �
 
 ## 2단계 실제 검증 (2026-10-11, macOS arm64)
 
-SDK는 `/Users/mac-mini-m4-homeserver/.dotnet/dotnet` **8.0.425**를 사용했다.
+SDK는 `~/.dotnet/dotnet` **8.0.425**를 사용했다.
 Pillow 11.3.0은 Git에서 무시되는 루트 `.venv`에 requirements-build.txt로 설치했다.
 원본 Resources, scripts 및 루트 .gitignore를 수정하지 않았다.
 
@@ -283,7 +283,7 @@ Get-ChildItem $eventRoot -Filter *.json | Get-Content
 - `~/.dotnet/dotnet test windows/AIpet.sln -c Release`: **통과 37·실패 0·건너뜀 0**.
   기존 29개와 화면 비교/점멸·로그·반복 예외 판단 테스트 8개가 통과했다.
 - `~/.dotnet/dotnet publish windows/src/AIpet.App -c Release -r win-x64 --self-contained -p:PublishSingleFile=true`: 성공.
-- 최신 실행 파일: `/Users/mac-mini-m4-homeserver/paseo-work/AIpet/windows/src/AIpet.App/bin/Release/net8.0-windows/win-x64/publish/AIpet.exe`
+- 최신 실행 파일: `windows/src/AIpet.App/bin/Release/net8.0-windows/win-x64/publish/AIpet.exe`
   **164,832,293 bytes (157.20 MiB)**. 위 2단계 최초 생성본을 대체했다.
 - `git status --short --untracked-files=all`: windows/와 기존 .github/workflows/windows.yml만 표시.
   `git diff --exit-code`: 0. 이번에는 workflow 파일을 수정하지 않았다.
@@ -320,7 +320,7 @@ Tests/WindowGuardTests.cs; windows/README.md, windows/PORTING.md.
 로컬 검증: Release 빌드 경고 0·오류 0, 테스트 통과 47·실패 0·건너뜀 0(기존 37+추가 10).
 추가 검사는 표시 의도·외부 숨김·최소화·최상위 해제·cloaked 분기 및 로그 필드/빈도/크기/UTF-8/실패를 검증한다.
 실제 Windows 재현 해결 여부는 아직 확인하지 않았다. 이 변경은 브랜치와 CI 아티팩트로만 제공하며,
-기존 preview.1 릴리스는 갱신하지 않는다.
+기존 릴리스를 수정하지 않고 preview.2로 제공한다.
 
 
 ## 창 재생성과 트레이 복구 보완

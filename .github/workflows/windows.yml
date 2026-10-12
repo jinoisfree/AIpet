@@ -39,17 +39,17 @@ jobs:
           New-Item -ItemType Directory -Force $package | Out-Null
           Copy-Item windows/artifacts/win-x64/AIpet.exe $package
           Copy-Item windows/README.md "$package/README.md"
-          $archive = 'windows/artifacts/AIpet-1.0.9-preview.1-win-x64.zip'
+          $archive = 'windows/artifacts/AIpet-1.0.9-preview.2-win-x64.zip'
           Compress-Archive -Path "$package/*" -DestinationPath $archive
           $hash = (Get-FileHash $archive -Algorithm SHA256).Hash.ToLowerInvariant()
-          "$hash  AIpet-1.0.9-preview.1-win-x64.zip" | Set-Content windows/artifacts/SHA256SUMS -Encoding ascii
+          "$hash  AIpet-1.0.9-preview.2-win-x64.zip" | Set-Content windows/artifacts/SHA256SUMS -Encoding ascii
           $setupHash = (Get-FileHash windows/artifacts/AIpet-Setup-win-x64.exe -Algorithm SHA256).Hash.ToLowerInvariant()
           "$setupHash  AIpet-Setup-win-x64.exe" | Add-Content windows/artifacts/SHA256SUMS -Encoding ascii
       - uses: actions/upload-artifact@v4
         with:
           name: AIpet-win-x64
           path: |
-            windows/artifacts/AIpet-1.0.9-preview.1-win-x64.zip
+            windows/artifacts/AIpet-1.0.9-preview.2-win-x64.zip
             windows/artifacts/AIpet-Setup-win-x64.exe
             windows/artifacts/SHA256SUMS
           if-no-files-found: error
