@@ -1,4 +1,7 @@
 using System.Text.Json;
+using System.Runtime.InteropServices;
+using System.Security.Cryptography;
+using Microsoft.Win32.SafeHandles;
 namespace AIpet.Core;
 
 // Bounded incremental JSONL reader. Raw bytes survive only until the incomplete line is finished.
@@ -8,7 +11,9 @@ public sealed class TranscriptTail
     public string Path { get; }
     public TranscriptDecoder Decoder { get; private set; }
     public long Offset { get; private set; }
-    private DateTime creationTime;
+    private DateTime creationTime, lastWriteTime;
+    private FileIdentity? identity;
+    private byte[]? boundaryHash;
     private byte[] pending = [];
     private bool discardUntilNewline;
     public string? LastError { get; private set; }
@@ -25,13 +30,24 @@ public sealed class TranscriptTail
         {
             var info = new FileInfo(Path);
             var size = info.Length;
-            if (info.CreationTimeUtc != creationTime || size < Offset)
-            {
-                Offset = 0; pending = []; discardUntilNewline = false;
-                Decoder = new(Decoder.Provider, Decoder.SessionID); creationTime = info.CreationTimeUtc;
-            }
-            if (size == Offset) { LastError = null; return []; }
+            var observedCreation = info.CreationTimeUtc;
+            var observedWrite = info.LastWriteTimeUtc;
+            // Unchanged metadata avoids opening idle files. Equal size alone is insufficient.
+            if (size == Offset && observedCreation == creationTime && observedWrite == lastWriteTime)
+            { LastError = null; return []; }
             using var file = new FileStream(Path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+            size = file.Length;
+            var currentIdentity = GetIdentity(file.SafeFileHandle);
+            var replaced = size < Offset || observedCreation != creationTime
+                || identity is { } previous && currentIdentity is { } current && previous != current;
+            if (!replaced && boundaryHash is not null)
+                replaced = !CryptographicOperations.FixedTimeEquals(boundaryHash, HashBoundary(file, Offset));
+            if (replaced)
+            {
+                Offset = 0; pending = []; discardUntilNewline = false; boundaryHash = null;
+                Decoder = new(Decoder.Provider, Decoder.SessionID);
+            }
+            creationTime = observedCreation; identity = currentIdentity;
             if (Offset == 0 && size > MaxBytes)
             {
                 var prefix = new byte[256 * 1024]; var length = file.ReadAtLeast(prefix, prefix.Length, throwOnEndOfStream: false);
@@ -52,11 +68,36 @@ public sealed class TranscriptTail
             }
             pending = data[start..];
             if (pending.Length > MaxBytes) { pending = []; discardUntilNewline = true; Limited = true; }
+            boundaryHash = Offset > 0 ? HashBoundary(file, Offset) : null;
+            lastWriteTime = observedWrite;
             LastError = null; return items;
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException)
         { LastError = "기록 읽기 실패"; return []; }
     }
+    private static byte[] HashBoundary(FileStream file, long offset)
+    {
+        Span<byte> bytes = stackalloc byte[(int)Math.Min(64, offset)];
+        file.Seek(offset - bytes.Length, SeekOrigin.Begin);
+        var count = file.ReadAtLeast(bytes, bytes.Length, throwOnEndOfStream: false);
+        return SHA256.HashData(bytes[..count]);
+    }
+    private static FileIdentity? GetIdentity(SafeFileHandle handle)
+    {
+        if (OperatingSystem.IsWindows() && GetFileInformationByHandle(handle, out var info))
+            return new(info.VolumeSerialNumber, info.FileIndexHigh, info.FileIndexLow);
+        return null;
+    }
+    private readonly record struct FileIdentity(uint Volume, uint IndexHigh, uint IndexLow);
+    [StructLayout(LayoutKind.Sequential)]
+    private struct ByHandleFileInformation
+    {
+        public uint Attributes, CreationLow, CreationHigh, AccessLow, AccessHigh, WriteLow, WriteHigh;
+        public uint VolumeSerialNumber, SizeHigh, SizeLow, LinkCount, FileIndexHigh, FileIndexLow;
+    }
+    [DllImport("kernel32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool GetFileInformationByHandle(SafeFileHandle handle, out ByHandleFileInformation information);
     private WorkItem? Consume(ReadOnlyMemory<byte> bytes)
     {
         try { using var doc = JsonDocument.Parse(bytes); return Decoder.Consume(doc.RootElement); }

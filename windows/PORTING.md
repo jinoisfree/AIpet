@@ -32,9 +32,11 @@ dotnet run --project windows/src/AIpet.Cli -- --snapshot
 - 이벤트 기본 위치는 `LocalApplicationData/AIpet/events`다. Windows에서는
   `%LOCALAPPDATA%\AIpet\events`이며 생성자 및 CLI 인자로 변경할 수 있다.
 - cwd 마지막 요소는 `/`와 `\`를 모두 지원한다.
-- 파일 교체는 생성 시각 변경 또는 현재 offset보다 작은 파일 크기로 판정한다.
-  Swift의 inode 판정과 달라서 같은 생성 시각·같거나 더 큰 크기를 유지하는
-  교체는 감지할 수 없다. 이는 이번 계획에서 지정한 방식이다.
+- Windows 파일 교체는 열린 핸들의 GetFileInformationByHandle 볼륨 일련번호와 파일 인덱스로 판정한다.
+  모든 OS에서 offset 직전 최대 64바이트의 SHA-256을 비교하며, 생성 시각 변경·크기 감소도 확인한다.
+  보조 검사를 위한 원문은 보관하지 않는다. 크기·생성 시각·수정 시각이 모두 같으면 파일을 열지 않는다.
+  따라서 모든 메타데이터까지 동일하게 보존한 교체는 다음 변화 전까지 감지하지 못할 수 있다.
+  Windows 식별 API 실패 시에는 생성 시각·크기·경계 해시 보조 판단을 사용한다.
 - Unix에서는 이벤트 디렉터리 0700, 이벤트 파일 0600을 적용한다. Windows에서는
   POSIX 권한 설정을 호출하지 않는다.
 - PetIdentity는 NFC와 StringInfo 문자 요소를 사용한다. UserDefaults 대신
@@ -357,3 +359,14 @@ Mac 설치 스크립트는 이미 기존 앱 교체를 지원하므로 변경하
 CI에서 새 설치, 이전 파일 교체, 실행 중 업그레이드, 단일 제거 항목, 설정 유지, 제거를 확인한다.
 실제 사용자 PC에서는 설치 UI, SmartScreen, 기존 ZIP에서 전환, 업데이트 후 펫 실행을 확인해야 한다.
 기존 GitHub 릴리스 파일은 자동 변경하지 않으며 새 설치 파일은 현재 브랜치 Actions에서 제공한다.
+
+## 기록 파일 교체 감지 보완
+
+Windows CI의 `rotation reload` 실패에 대응해 생성 시각 외에 파일 식별자와 읽기 경계 해시를
+사용한다. 파일 시스템 터널링이나 시각 해상도는 가능한 원인이며 당시 실패 원인은 확정하지 않았다.
+구조체와 식별자 비교 기준은 [Microsoft GetFileInformationByHandle 문서](https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-getfileinformationbyhandle)를 따른다.
+API 실패 시 보조 판단으로 돌아가며 외부 패키지는 추가하지 않았다.
+
+생성 시각을 동일하게 맞춘 원자 교체/같은 파일 덮어쓰기 각각의 크기 감소·동일·증가 6건과,
+메타데이터만 변경·미완성 줄 덧붙이기·중복 방지 1건을 추가했다. 기존 검사는 변경하거나 생략하지 않았다.
+로컬 Release 빌드는 경고 0·오류 0, 테스트는 통과 60·실패 0·건너뜀 0이다.
