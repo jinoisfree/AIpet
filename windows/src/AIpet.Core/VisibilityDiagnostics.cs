@@ -33,7 +33,7 @@ public static class VisibilityDiagnostics
 {
     // Export only known event identifiers and numeric/boolean flags, never arbitrary log text.
     private static readonly HashSet<string> Events = new(StringComparer.Ordinal) {
-        "WM_CLOSE", "WM_SHOWWINDOW", "WM_DESTROY", "WM_SYSCOMMAND", "WM_WINDOWPOSCHANGING", "WM_WINDOWPOSCHANGED",
+        "TAKEOVER", "WM_CLOSE", "WM_SHOWWINDOW", "WM_DESTROY", "WM_SYSCOMMAND", "WM_WINDOWPOSCHANGING", "WM_WINDOWPOSCHANGED",
         "CLOSING_CANCELLED", "GUARD_CLOAKED", "GUARD_RECOVERY", "PET_CLOSED", "PET_LOST", "RECREATE_LIMIT",
         "RECREATE_SUCCESS", "RECREATE_FAILED", "DESKTOP_FOLLOW", "DESKTOP_ERROR", "OFFSCREEN_RECOVERY"
     };

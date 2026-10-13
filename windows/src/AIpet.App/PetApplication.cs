@@ -48,6 +48,7 @@ public sealed class PetApplication : Application
         try
         {
             atlas = new SpriteAtlas(); BuildTray(); CreatePet(); UpdatePet();
+            new CopyLocations(CopyLocations.DefaultPath).Add(new WindowsCopies().CurrentPath);
         }
         catch (Exception error) { Program.Errors.Append(error); MessageBox.Show(error.Message, "AIpet"); quitting = true; Shutdown(1); return; }
         guardTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
