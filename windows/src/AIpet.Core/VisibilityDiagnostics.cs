@@ -6,9 +6,25 @@ public static class VisibilityGuard
 {
     public static bool FollowDesktop(bool intended, bool? onCurrent) => intended && onCurrent == false;
     // All rectangles here use physical pixels, consistently downward on Windows.
-    public static bool RecoverOffscreen(bool intended, bool dragging, Rect window, Rect sprite, IReadOnlyList<Rect> workAreas) =>
-        intended && !dragging && workAreas.Count > 0 &&
-        (!workAreas.Any(r => r.Intersects(window)) || !workAreas.Any(r => r.Contains(sprite)));
+    public static bool RecoverOffscreen(bool intended, bool dragging, Rect window, Rect sprite, IReadOnlyList<Rect> workAreas)
+    {
+        if (!intended || dragging || workAreas.Count == 0) return false;
+        if (!workAreas.Any(r => r.Intersects(window))) return true;
+        static double Distance(Rect area, Rect sprite)
+        {
+            var dx = Math.Max(area.MinX - sprite.MidX, Math.Max(0, sprite.MidX - area.MaxX));
+            var dy = Math.Max(area.MinY - sprite.MidY, Math.Max(0, sprite.MidY - area.MaxY));
+            return dx * dx + dy * dy;
+        }
+        var nearest = workAreas.MinBy(r => Distance(r, sprite));
+        if (sprite.Width > nearest.Width || sprite.Height > nearest.Height)
+            return !nearest.Intersects(sprite);
+        return !workAreas.Any(r => r.Inset(-2, -2).Contains(sprite));
+    }
+    // Monotonic seconds, with negative infinity before the first recovery.
+    public static bool RecoveryDue(bool offscreen, double now, double lastRecovery) => offscreen && now - lastRecovery >= 30;
+    public static bool PositionChanged(Rect before, Rect? after) => after is { } rect && (before.X != rect.X || before.Y != rect.Y);
+
 }
 public sealed record MonitorDiagnostic(Rect Bounds, Rect WorkArea, double Scale);
 public sealed record PetWindowDiagnostic(bool Exists, bool? Visible = null, bool? Minimized = null,

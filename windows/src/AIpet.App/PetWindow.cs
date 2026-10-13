@@ -17,6 +17,7 @@ public sealed class PetWindow : Window
     private HwndSource? messageSource;
     public bool IsAlive => !closed && !destroyed && !retired && WindowDiagnostics.IsWindow(new WindowInteropHelper(this).Handle);
     public bool IsShown => IsAlive && IsVisible && WindowDiagnostics.Read(new WindowInteropHelper(this).Handle) is { Visible: true, Minimized: false };
+    private double lastOffscreenRecovery = double.NegativeInfinity;
     private double lastGuardCheck = double.NegativeInfinity;
     public bool IntendedVisible { get; private set; }
     private readonly PetSurface surface;
@@ -148,10 +149,12 @@ public sealed class PetWindow : Window
         }
         if (actions == WindowRecovery.LogCloaked) return;
         if (Placement is { } placement && WindowDiagnostics.WindowRect(handle) is { } rect &&
-            VisibilityGuard.RecoverOffscreen(IntendedVisible, dragging || dragStart is not null, rect,
-                Screen.SpritePixels(placement, rect), ScreenCoordinates.Monitors().Select(m => m.WorkArea).ToArray()))
+            VisibilityGuard.RecoveryDue(VisibilityGuard.RecoverOffscreen(IntendedVisible, dragging || dragStart is not null, rect,
+                Screen.SpritePixels(placement, rect), ScreenCoordinates.Monitors().Select(m => m.WorkArea).ToArray()), now, lastOffscreenRecovery))
         {
-            Placement = null; Constrain(); renderedState = null; Moved?.Invoke();
+            lastOffscreenRecovery = now;
+            Placement = null; Constrain(); renderedState = null;
+            if (VisibilityGuard.PositionChanged(rect, WindowDiagnostics.WindowRect(handle))) Moved?.Invoke();
             diagnostics.Record("OFFSCREEN_RECOVERY", $"x={rect.X}; y={rect.Y}; width={rect.Width}; height={rect.Height}");
         }
         if (IntendedVisible && !IsVisible) actions |= WindowRecovery.Show;
