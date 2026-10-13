@@ -7,18 +7,20 @@ public sealed class CopyRetirementTests : TestSupport
     {
         public int SelfId => 1;
         public string CurrentPath => Path.Combine(root, "installed", "AIpet.exe");
-        public readonly Dictionary<string, CopyVersion?> Files = new(StringComparer.OrdinalIgnoreCase);
+        private readonly Dictionary<string, CopyVersion?> Files = new(StringComparer.OrdinalIgnoreCase);
         public readonly List<CopyProcess> Running = [];
         public readonly List<int> Stopped = [];
         public readonly List<string> Deleted = [];
         public readonly HashSet<int> StopFailures = [];
-        public readonly HashSet<string> DeleteFailures = [];
+        private readonly HashSet<string> DeleteFailures = new(StringComparer.OrdinalIgnoreCase);
+        public void Register(string path, CopyVersion? version) => Files[Resolve(path)] = version;
+        public void FailDelete(string path) => DeleteFailures.Add(Resolve(path));
         public IEnumerable<CopyProcess> Processes() => Running;
         public string Resolve(string path) => CopyIdentity.PathKey(path);
         public CopyVersion? Version(string path) => Files.GetValueOrDefault(Resolve(path));
         public bool Stop(CopyProcess process, TimeSpan timeout) { Stopped.Add(process.Id); return !StopFailures.Contains(process.Id); }
         public bool Exists(string path) => Files.ContainsKey(Resolve(path));
-        public void Delete(string path) { if (DeleteFailures.Contains(path)) throw new IOException(); Deleted.Add(path); Files.Remove(path); }
+        public void Delete(string path) { path = Resolve(path); if (DeleteFailures.Contains(path)) throw new IOException(); Deleted.Add(path); Files.Remove(path); }
     }
     [Fact] public void IdentityRequiresBothProductAndOriginalOrInternalName()
     {
@@ -38,11 +40,11 @@ public sealed class CopyRetirementTests : TestSupport
     {
         var env = new Fake(Root); var locations = new CopyLocations(Path.Combine(Root, "locations.json")); var log = new List<string>();
         var old = Path.Combine(Root, "old", "AIpet.exe"); var unknown = Path.Combine(Root, "unknown", "AIpet.exe");
-        env.Files[env.CurrentPath] = Pet(); env.Files[old] = Pet(); env.Files[unknown] = new("Other", "AIpet.exe", null, "1");
+        env.Register(env.CurrentPath, Pet()); env.Register(old, Pet()); env.Register(unknown, new("Other", "AIpet.exe", null, "1"));
         env.Running.AddRange([new(1, env.CurrentPath, true), new(2, old, true), new(3, unknown, true), new(4, old, false)]);
         locations.Write([env.CurrentPath.ToUpperInvariant(), old, unknown]);
         new CopyRetirement(env, locations, log.Add).Retire();
-        Assert.Equal(new[] { 2 }, env.Stopped); Assert.Equal(new[] { old }, env.Deleted);
+        Assert.Equal(new[] { 2 }, env.Stopped); Assert.Equal(new[] { CopyIdentity.PathKey(old) }, env.Deleted);
         Assert.True(env.Exists(env.CurrentPath)); Assert.True(env.Exists(unknown));
         Assert.DoesNotContain(old, locations.Read()); Assert.DoesNotContain(Root, string.Join("\n", log));
     }
@@ -50,22 +52,38 @@ public sealed class CopyRetirementTests : TestSupport
     {
         var env = new Fake(Root); var locations = new CopyLocations(Path.Combine(Root, "locations.json"));
         var files = Enumerable.Range(0, 4).Select(i => Path.Combine(Root, i.ToString(), "AIpet.exe")).ToArray();
-        foreach (var p in files) env.Files[p] = Pet();
-        env.Running.Add(new(2, files[0], true)); env.StopFailures.Add(2); env.DeleteFailures.Add(files[1]);
+        foreach (var p in files) env.Register(p, Pet());
+        env.Running.Add(new(2, files[0], true)); env.StopFailures.Add(2); env.FailDelete(files[1]);
         locations.Write(files.Append(Path.Combine(Root, "gone", "AIpet.exe")));
         new CopyRetirement(env, locations, _ => { }).Retire();
-        Assert.Equal(files.Skip(2), env.Deleted); Assert.True(env.Exists(files[0])); Assert.True(env.Exists(files[1])); Assert.Equal(2, locations.Read().Length);
+        Assert.Equal(files.Skip(2).Select(CopyIdentity.PathKey), env.Deleted); Assert.True(env.Exists(files[0])); Assert.True(env.Exists(files[1])); Assert.Equal(2, locations.Read().Length);
     }
     [Fact] public void TakeoverChangesOnlyDifferentVerifiedInstancesAndNeverDeletes()
     {
-        var env = new Fake(Root); env.Files[env.CurrentPath] = Pet();
-        var other = Path.Combine(Root, "other", "AIpet.exe"); env.Files[other] = Pet();
+        var env = new Fake(Root); env.Register(env.CurrentPath, Pet());
+        var other = Path.Combine(Root, "other", "AIpet.exe"); env.Register(other, Pet());
         env.Running.AddRange([new(1, env.CurrentPath, true), new(2, env.CurrentPath, true), new(3, other, true)]);
         var locations = new CopyLocations(Path.Combine(Root, "locations.json"));
         Assert.True(new CopyRetirement(env, locations, _ => { }).TakeOver());
         Assert.Equal(new[] { 3 }, env.Stopped); Assert.Empty(env.Deleted);
         Assert.True(CopyIdentity.ShouldTakeOver(env.CurrentPath, Pet("2"), new(2, env.CurrentPath, true), Pet("1"), 1));
         Assert.False(CopyIdentity.ShouldTakeOver(env.CurrentPath, Pet(), new(2, other, false), Pet(), 1));
+    }
+    [Fact] public void BackslashRegistrationSupportsMixedCaseLookupDeletionAndPruning()
+    {
+        var env = new Fake(Root);
+        const string old = @"C:\Users\example\old\AIpet.exe";
+        const string failed = @"C:\Users\example\blocked\AIpet.exe";
+        env.Register(old, Pet()); env.Register(failed, Pet());
+        env.FailDelete(failed.ToUpperInvariant().Replace('\\', '/'));
+        Assert.True(env.Exists(old.ToUpperInvariant().Replace('\\', '/')));
+        Assert.True(CopyIdentity.IsPet(env.Version(old)));
+        var locations = new CopyLocations(Path.Combine(Root, "locations.json"));
+        locations.Write([old, failed]);
+        new CopyRetirement(env, locations, _ => { }).Retire();
+        Assert.Equal(new[] { CopyIdentity.PathKey(old) }, env.Deleted);
+        Assert.False(env.Exists(old)); Assert.True(env.Exists(failed));
+        Assert.True(CopyIdentity.SamePath(failed, Assert.Single(locations.Read())));
     }
     [Fact] public void LocationStoreBoundsDeduplicatesAndRecoversFromCorruptFile()
     {
