@@ -15,7 +15,11 @@ if ((Test-Path $target) -or (Test-Path $settingsRoot) -or (Test-Path $registryKe
 function Run-Setup {
     param([string]$LogName)
     $logPath = Join-Path $env:RUNNER_TEMP $LogName
-    $process = Start-Process $setup -ArgumentList @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', "/LOG=`"$logPath`"") -PassThru -Wait
+    Write-Output "START: $LogName"
+    $process = Start-Process $setup -ArgumentList @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', "/LOG=`"$logPath`"") -PassThru
+    if (!$process.WaitForExit(120000)) { try { $process.Kill($true) } catch { }; throw "Setup timeout: $LogName" }
+    $process.Refresh()
+    Write-Output "END: $LogName exit=$($process.ExitCode)"
     if ($process.ExitCode -ne 0) { Get-Content $logPath; throw "Setup failed: $($process.ExitCode)" }
 }
 function Assert-Installed {
@@ -44,7 +48,9 @@ $fixture = Join-Path $env:RUNNER_TEMP ('aipet-copies-' + [guid]::NewGuid().ToStr
 New-Item -ItemType Directory $fixture | Out-Null
 Assert-Identity $source 'New build'
 $archive = Join-Path $fixture 'previous.zip'
-Invoke-WebRequest 'https://github.com/jinoisfree/AIpet/releases/download/windows-v1.0.11-preview.1/AIpet-1.0.11-preview.1-win-x64.zip' -OutFile $archive
+Write-Output 'START: download published preview.1'
+Invoke-WebRequest -TimeoutSec 90 'https://github.com/jinoisfree/AIpet/releases/download/windows-v1.0.11-preview.1/AIpet-1.0.11-preview.1-win-x64.zip' -OutFile $archive
+Write-Output 'END: download published preview.1'
 Expand-Archive $archive (Join-Path $fixture 'previous')
 Assert-Identity (Join-Path $fixture 'previous/AIpet.exe') 'Published preview.1'
 try {

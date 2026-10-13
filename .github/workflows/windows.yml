@@ -30,6 +30,7 @@ jobs:
           & $compiler windows/installer/AIpet.iss
           if ($LASTEXITCODE -ne 0) { throw 'Installer compilation failed.' }
       - name: Test install and upgrade
+        timeout-minutes: 8
         shell: pwsh
         run: ./windows/scripts/test_installer.ps1
       - name: Package Windows preview
