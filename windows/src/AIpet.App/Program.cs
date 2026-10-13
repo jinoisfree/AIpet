@@ -14,6 +14,21 @@ public static class Program
             try { CommandEntry.TryRun(args); } catch { }
             return 0;
         }
+        if (args.Contains("--snapshot") || args.Contains("--usage-snapshot"))
+        {
+            try
+            {
+                var output = GetStdHandle(-11);
+                if (output == IntPtr.Zero || output == new IntPtr(-1)) AttachConsole(uint.MaxValue);
+                CommandEntry.TryRun(args, out var code, new DiagnosticOutput(() => {
+                    var handle = GetStdHandle(-11);
+                    if (handle == IntPtr.Zero || handle == new IntPtr(-1)) throw new IOException();
+                    return Console.OpenStandardOutput();
+                }));
+                return code;
+            }
+            catch { return 1; }
+        }
         AppDomain.CurrentDomain.UnhandledException += (_, e) => {
             if (e.ExceptionObject is Exception error) Errors.Append(error);
         };
@@ -26,13 +41,6 @@ public static class Program
     }
     private static int Run(string[] args)
     {
-        if ((args.Contains("--snapshot") || args.Contains("--usage-snapshot")) && !args.Contains("--hook"))
-        {
-            // Preserve redirected stdout; attach only when launched from an existing console.
-            var output = GetStdHandle(-11);
-            if (output == IntPtr.Zero || output == new IntPtr(-1)) AttachConsole(uint.MaxValue);
-        }
-        if (CommandEntry.TryRun(args)) return 0;
         using var mutex = new Mutex(true, @"Local\AIpet.Windows.DesktopPet", out var created);
         if (!created) return 0;
         try { return new PetApplication().Run(); }

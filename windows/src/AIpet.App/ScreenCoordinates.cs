@@ -16,6 +16,15 @@ public sealed class ScreenCoordinates
         Scale = GetDpiForMonitor(monitor, 0, out var x, out _) == 0 ? x / 96.0 : 1;
         Frame = FromPixels(screen.Bounds); WorkArea = FromPixels(screen.WorkingArea);
     }
+    public static MonitorDiagnostic[] Monitors() => Forms.Screen.AllScreens.Select(s => new MonitorDiagnostic(
+        Pixels(s.Bounds), Pixels(s.WorkingArea), new ScreenCoordinates(s).Scale)).ToArray();
+    private static Rect Pixels(System.Drawing.Rectangle r) => new(r.X, r.Y, r.Width, r.Height);
+    public Rect SpritePixels(PetPlacement placement, Rect actualWindow)
+    {
+        var sprite = PetLayout.VisibleSprite(placement.GlobalSprite);
+        return new(actualWindow.X + (sprite.X - placement.WindowFrame.X) * Scale,
+            actualWindow.Y + (placement.WindowFrame.MaxY - sprite.MaxY) * Scale, sprite.Width * Scale, sprite.Height * Scale);
+    }
     public static ScreenCoordinates Nearest(System.Drawing.Point physical) => new(Forms.Screen.FromPoint(physical));
     public static ScreenCoordinates Primary => new(Forms.Screen.PrimaryScreen ?? Forms.Screen.AllScreens[0]);
     public static System.Drawing.Point CursorPixels => Forms.Cursor.Position;

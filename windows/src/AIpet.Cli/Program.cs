@@ -1,3 +1,3 @@
 using AIpet.Core;
-CommandEntry.TryRun(args);
-return 0;
+CommandEntry.TryRun(args, out var code);
+return code;

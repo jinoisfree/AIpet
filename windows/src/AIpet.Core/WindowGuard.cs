@@ -7,7 +7,7 @@ public static class WindowGuard
     public static WindowRecovery Decide(bool intendedVisible, bool osVisible, bool minimized, bool topmost, bool cloaked)
     {
         if (!intendedVisible) return WindowRecovery.None;
-        // A cloaked window may belong to a different virtual desktop; never pull it back.
+        // Desktop following runs first; do not force-show a window that is still cloaked.
         if (cloaked) return WindowRecovery.LogCloaked;
         return (!osVisible || minimized ? WindowRecovery.Show : WindowRecovery.None)
             | (!topmost ? WindowRecovery.RestoreTopmost : WindowRecovery.None);

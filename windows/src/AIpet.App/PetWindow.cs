@@ -10,6 +10,7 @@ public sealed class PetWindow : Window
     private readonly SpriteAtlas atlas;
     private readonly Func<bool> isQuitting;
     private readonly WindowDiagnostics diagnostics = new();
+    private readonly VirtualDesktopFollower desktop;
     private int ownWindowChangeDepth;
     private bool visibilityInitialized, closed, destroyed, retired;
     private uint lastCloaked;
@@ -51,7 +52,7 @@ public sealed class PetWindow : Window
     public double DotOpacity { get; private set; } = 1;
     public PetWindow(SpriteAtlas atlas, Func<bool> isQuitting)
     {
-        this.atlas = atlas; this.isQuitting = isQuitting;
+        this.atlas = atlas; this.isQuitting = isQuitting; desktop = new(diagnostics);
         WindowStyle = WindowStyle.None; AllowsTransparency = true; Background = Brushes.Transparent;
         Topmost = true; ShowInTaskbar = false; ShowActivated = false; ResizeMode = ResizeMode.NoResize;
         Width = 354; Height = 320;
@@ -95,7 +96,7 @@ public sealed class PetWindow : Window
     private void OnTick(object? sender, EventArgs e) => Tick();
     public void Retire()
     {
-        retired = true; timer.Stop(); timer.Tick -= OnTick;
+        retired = true; desktop.Dispose(); timer.Stop(); timer.Tick -= OnTick;
         OpenDashboard = OpenMenu = Moved = DozeChanged = null;
         if (messageSource is { IsDisposed: false }) messageSource.RemoveHook(WindowMessage);
         messageSource = null;
@@ -106,7 +107,7 @@ public sealed class PetWindow : Window
         if (visibilityInitialized && ownWindowChangeDepth == 0 && !isQuitting()) diagnostics.Observe(message, wParam, lParam);
         if (message == 0x0002) { destroyed = true; timer.Stop(); }
         if (message == 0x0021) { handled = true; return new IntPtr(3); } // MA_NOACTIVATE
-        if (message is 0x007E or 0x02E0) Dispatcher.BeginInvoke(new Action(() => { if (IsAlive) Constrain(); })); // display/DPI change
+        if (message is 0x007E or 0x02E0) Dispatcher.BeginInvoke(new Action(() => { if (IsAlive && !dragging && dragStart is null) Constrain(); })); // display/DPI change
         return IntPtr.Zero;
     }
     private void OwnWindowChange(Action action)
@@ -137,6 +138,7 @@ public sealed class PetWindow : Window
         lastGuardCheck = now;
         var handle = new WindowInteropHelper(this).Handle;
         if (handle == IntPtr.Zero) return;
+        if (desktop.Follow(handle, IntendedVisible)) renderedState = null;
         var before = WindowDiagnostics.Read(handle);
         var actions = WindowGuard.Decide(IntendedVisible, before.Visible, before.Minimized, before.Topmost, before.Cloaked != 0);
         if (before.Cloaked != lastCloaked)
@@ -145,6 +147,13 @@ public sealed class PetWindow : Window
             lastCloaked = before.Cloaked;
         }
         if (actions == WindowRecovery.LogCloaked) return;
+        if (Placement is { } placement && WindowDiagnostics.WindowRect(handle) is { } rect &&
+            VisibilityGuard.RecoverOffscreen(IntendedVisible, dragging || dragStart is not null, rect,
+                Screen.SpritePixels(placement, rect), ScreenCoordinates.Monitors().Select(m => m.WorkArea).ToArray()))
+        {
+            Placement = null; Constrain(); renderedState = null; Moved?.Invoke();
+            diagnostics.Record("OFFSCREEN_RECOVERY", $"x={rect.X}; y={rect.Y}; width={rect.Width}; height={rect.Height}");
+        }
         if (IntendedVisible && !IsVisible) actions |= WindowRecovery.Show;
         if (actions == WindowRecovery.None) return;
         OwnWindowChange(() => {
@@ -161,7 +170,14 @@ public sealed class PetWindow : Window
             }
         });
         renderedState = null;
-        diagnostics.Record("GUARD_RECOVERY", $"actions={actions}; before: {before}; after: {WindowDiagnostics.Read(handle)}");
+        diagnostics.Record("GUARD_RECOVERY", $"actions={(int)actions}; before: {before}; after: {WindowDiagnostics.Read(handle)}");
+    }
+    public PetWindowDiagnostic DiagnosticState()
+    {
+        if (!IsAlive) return new(false);
+        var handle = new WindowInteropHelper(this).Handle;
+        var state = WindowDiagnostics.Read(handle);
+        return new(true, state.Visible, state.Minimized, state.Topmost, state.Cloaked, desktop.OnCurrent(handle), WindowDiagnostics.WindowRect(handle));
     }
     public void SetStatus(PetStatus status)
     {
@@ -199,7 +215,7 @@ public sealed class PetWindow : Window
         var next = PetLayout.VisibleSprite(new(default(Point), new PetLayout(PetScale).SpriteSize));
         Place(new(visible.MidX - next.MidX, visible.MinY - next.MinY)); Moved?.Invoke();
     }
-    public void Constrain() { if (target is not null) Place(target.GlobalSprite.Origin); }
+    public void Constrain() { if (target is not null) { Placement = null; Place(target.GlobalSprite.Origin); } }
     private void Place(Point origin, bool reselect = true)
     {
         if (reselect)

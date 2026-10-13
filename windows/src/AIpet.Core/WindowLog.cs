@@ -16,6 +16,7 @@ public sealed class WindowLog(string? path = null)
             var date = now ?? DateTimeOffset.Now;
             static string Limit(string value, int count) => value[..Math.Min(value.Length, count)];
             var name = Limit(eventName, 80);
+            if (foregroundProcess is not null && !System.Text.RegularExpressions.Regex.IsMatch(foregroundProcess, @"\A[\p{L}\p{N} _.-]{1,200}\z")) foregroundProcess = null;
             lock (gate)
             {
                 if (lastEvents.TryGetValue(name, out var previous) && date - previous < TimeSpan.FromSeconds(1)) return;

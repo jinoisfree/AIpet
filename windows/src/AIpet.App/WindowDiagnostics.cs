@@ -5,6 +5,14 @@ namespace AIpet.App;
 internal sealed class WindowDiagnostics
 {
     private readonly WindowLog log = new();
+    public IEnumerable<string> RecentLines()
+    {
+        try { return File.Exists(log.FilePath) ? File.ReadLines(log.FilePath).TakeLast(50).ToArray() : []; }
+        catch { return []; }
+    }
+    public static Rect? WindowRect(IntPtr handle) => GetWindowRect(handle, out var r) ? new Rect(r.Left, r.Top, r.Right - r.Left, r.Bottom - r.Top) : null;
+    [StructLayout(LayoutKind.Sequential)] private struct NativeRect { public int Left, Top, Right, Bottom; }
+    [DllImport("user32.dll")] private static extern bool GetWindowRect(IntPtr handle, out NativeRect rect);
     public void Record(string name, string flags)
     {
         string? processName = null;
