@@ -41,6 +41,7 @@ Name: "{userprograms}\AIpet"; Filename: "{app}\AIpet.exe"; WorkingDir: "{app}"
 Name: "{userdesktop}\AIpet"; Filename: "{app}\AIpet.exe"; WorkingDir: "{app}"
 
 [Run]
+Filename: "{app}\AIpet.exe"; Parameters: "--retire-old-copies"; Flags: runhidden waituntilterminated
 Filename: "{app}\AIpet.exe"; Description: "AIpet 실행"; Flags: nowait postinstall skipifsilent
 
 ; No wildcard deletion: user settings/logs live outside {app} and survive upgrades/uninstall.

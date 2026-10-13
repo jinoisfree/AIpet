@@ -8,6 +8,7 @@ public static class Program
     [STAThread]
     public static int Main(string[] args)
     {
+        if (args.Contains("--retire-old-copies")) { WindowsCopies.Retire(); return 0; }
         // Hooks bypass GUI/error handlers and remain silent even on unexpected failures.
         if (args.Contains("--hook"))
         {
@@ -41,8 +42,16 @@ public static class Program
     }
     private static int Run(string[] args)
     {
-        using var mutex = new Mutex(true, @"Local\AIpet.Windows.DesktopPet", out var created);
-        if (!created) return 0;
+        using var mutex = new Mutex(false, @"Local\AIpet.Windows.DesktopPet");
+        bool Acquire(int milliseconds) { try { return mutex.WaitOne(milliseconds); } catch (AbandonedMutexException) { return true; } }
+        if (!Acquire(0))
+        {
+            var clock = System.Diagnostics.Stopwatch.StartNew();
+            var log = new WindowDiagnostics();
+            var replaced = new CopyRetirement(new WindowsCopies(), new(CopyLocations.DefaultPath), result =>
+                log.Record("TAKEOVER", $"success={result == "takeover_stopped"}")).TakeOver();
+            if (!replaced || !Acquire((int)Math.Max(0, 10000 - clock.ElapsedMilliseconds))) return 0;
+        }
         try { return new PetApplication().Run(); }
         finally { mutex.ReleaseMutex(); }
     }
