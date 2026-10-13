@@ -95,7 +95,7 @@ public sealed class PetApplication : Application
         catch { ReleasePet(); throw; }
         finally { creating = false; }
     }
-    private PetWindow? EnsurePet()
+    private PetWindow? EnsurePet(bool force = false)
     {
         if (quitting || creating) return null;
         var exists = pet is { IsAlive: true };
@@ -104,9 +104,9 @@ public sealed class PetApplication : Application
             diagnostics.Record("PET_LOST", $"intendedVisible={intendedVisible}");
             ReleasePet();
         }
-        var decision = recreation.Decide(exists, intendedVisible, quitting, lifetime.Elapsed.TotalSeconds);
+        var decision = recreation.Decide(exists, intendedVisible, quitting, lifetime.Elapsed.TotalSeconds, force);
         if (decision == WindowRecreation.LimitReached)
-            diagnostics.Record("RECREATE_LIMIT", $"attempts={recreation.AttemptsInWindow}; intervalSeconds=60");
+            diagnostics.Record("RECREATE_LIMIT", $"attempts={recreation.AttemptsInWindow}; intervalSeconds=10");
         else if (decision == WindowRecreation.Recreate)
         {
             try
@@ -117,7 +117,7 @@ public sealed class PetApplication : Application
             catch (Exception error)
             {
                 Program.Errors.Append(error);
-                diagnostics.Record("RECREATE_FAILED", $"attempts={recreation.AttemptsInWindow}; exceptionType={error.GetType().Name}");
+                diagnostics.Record("RECREATE_FAILED", $"attempts={recreation.AttemptsInWindow}; hresult=0x{error.HResult:X}");
             }
         }
         return pet is { IsAlive: true } ? pet : null;
@@ -125,7 +125,7 @@ public sealed class PetApplication : Application
     private void SetPetVisible(bool visible)
     {
         intendedVisible = visible;
-        EnsurePet()?.SetIntendedVisible(visible);
+        EnsurePet(force: visible)?.SetIntendedVisible(visible);
     }
     private void RevealPet()
     {
@@ -138,6 +138,20 @@ public sealed class PetApplication : Application
         settings = settings with { Position = null };
         window?.ResetPosition(); Save();
     }
+    private void SaveDiagnostics()
+    {
+        try
+        {
+            var value = VisibilityDiagnostics.Build(typeof(PetApplication).Assembly.GetCustomAttributes(typeof(System.Reflection.AssemblyInformationalVersionAttribute), false)
+                .Cast<System.Reflection.AssemblyInformationalVersionAttribute>().First().InformationalVersion.Split('+')[0], DateTimeOffset.Now, intendedVisible,
+                pet?.DiagnosticState() ?? new(false), ScreenCoordinates.Monitors(), settings.Position,
+                settings.PetScale, recreation.Count(lifetime.Elapsed.TotalSeconds), Paused, diagnostics.RecentLines());
+            var path = Path.Combine(DiagnosticOutput.DefaultRoot, "diagnostics.json");
+            if (new DiagnosticOutput().Write(JsonData.Sorted(value, true), "diagnostics.json", path) != 0) throw new IOException();
+            Process.Start(new ProcessStartInfo("explorer.exe") { Arguments = "/select,\"" + path + "\"", UseShellExecute = true });
+        }
+        catch { MessageBox.Show("진단 정보를 저장하거나 저장 위치를 열 수 없습니다.", "AIpet"); }
+    }
     private void BuildTray()
     {
         menu = new Forms.ContextMenuStrip();
@@ -148,6 +162,7 @@ public sealed class PetApplication : Application
         var bubbleItem = new Forms.ToolStripMenuItem("말풍선 항상 보이기") { Checked = settings.BubbleAlwaysShown, CheckOnClick = true };
         bubbleItem.Click += (_, _) => { settings = settings with { BubbleAlwaysShown = bubbleItem.Checked }; if (EnsurePet() is { } window) window.AlwaysShown = bubbleItem.Checked; Save(); };
         menu.Items.Add(bubbleItem); menu.Items.Add(new Forms.ToolStripSeparator());
+        Item("진단 정보 저장", SaveDiagnostics);
         Item("옵션…", ShowOptions); Item("위치 초기화", ResetPetPosition);
         Item("동작 미리보기", () => Preview(false)); Item("마우스 시선 미리보기", () => Preview(true));
         menu.Items.Add(new Forms.ToolStripSeparator()); Item("AIpet 종료", Quit);

@@ -18,7 +18,7 @@ public sealed class WindowRecreationGuardTests
     {
         var guard = new WindowRecreationGuard();
         for (var i = 0; i < 5; i++) Assert.Equal(WindowRecreation.Recreate, guard.Decide(false, true, false, i));
-        Assert.Equal(WindowRecreation.LimitReached, guard.Decide(false, true, false, 59.999));
+        Assert.Equal(WindowRecreation.LimitReached, guard.Decide(false, true, false, 13.999));
         Assert.Equal(5, guard.AttemptsInWindow);
         Assert.Equal(WindowRecreation.Recreate, guard.Decide(false, true, false, 60));
         Assert.Equal(WindowRecreation.LimitReached, guard.Decide(false, true, false, 60.5));

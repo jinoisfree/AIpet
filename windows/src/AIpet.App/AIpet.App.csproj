@@ -7,6 +7,7 @@
     <EnableWindowsTargeting>true</EnableWindowsTargeting>
     <Nullable>enable</Nullable>
     <AssemblyName>AIpet</AssemblyName>
+    <Version>1.0.11-preview.2</Version>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>Assets/Generated/AIpet.ico</ApplicationIcon>
     <StartupObject>AIpet.App.Program</StartupObject>
