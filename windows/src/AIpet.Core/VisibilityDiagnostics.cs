@@ -35,7 +35,7 @@ public static class VisibilityDiagnostics
     private static readonly HashSet<string> Events = new(StringComparer.Ordinal) {
         "TAKEOVER", "WM_CLOSE", "WM_SHOWWINDOW", "WM_DESTROY", "WM_SYSCOMMAND", "WM_WINDOWPOSCHANGING", "WM_WINDOWPOSCHANGED",
         "CLOSING_CANCELLED", "GUARD_CLOAKED", "GUARD_RECOVERY", "PET_CLOSED", "PET_LOST", "RECREATE_LIMIT",
-        "RECREATE_SUCCESS", "RECREATE_FAILED", "DESKTOP_FOLLOW", "DESKTOP_ERROR", "OFFSCREEN_RECOVERY"
+        "RECREATE_SUCCESS", "RECREATE_FAILED", "DESKTOP_FOLLOW", "DESKTOP_ERROR", "OFFSCREEN_RECOVERY", "ZORDER_HOOKS"
     };
     public static object Build(string version, DateTimeOffset at, bool intended, PetWindowDiagnostic window,
         IReadOnlyList<MonitorDiagnostic> monitors, Point? position, double scale, int attempts, bool paused, IEnumerable<string> logLines)
