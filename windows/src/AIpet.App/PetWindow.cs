@@ -128,6 +128,7 @@ public sealed class PetWindow : Window
                 Show();
                 WindowDiagnostics.ShowWithoutActivation(new WindowInteropHelper(this).Handle);
                 Constrain();
+                WindowDiagnostics.RestoreTopmost(new WindowInteropHelper(this).Handle);
             }
             else Hide();
         });
@@ -141,7 +142,9 @@ public sealed class PetWindow : Window
         if (handle == IntPtr.Zero) return;
         if (desktop.Follow(handle, IntendedVisible)) renderedState = null;
         var before = WindowDiagnostics.Read(handle);
-        var actions = WindowGuard.Decide(IntendedVisible, before.Visible, before.Minimized, before.Topmost, before.Cloaked != 0);
+        var covered = IntendedVisible && before.Visible && !before.Minimized && before.Cloaked == 0
+            && WindowDiagnostics.IsCovered(handle);
+        var actions = WindowGuard.Decide(IntendedVisible, before.Visible, before.Minimized, before.Topmost, before.Cloaked != 0, covered);
         if (before.Cloaked != lastCloaked)
         {
             diagnostics.Record("GUARD_CLOAKED", $"previous=0x{lastCloaked:X}; {before}");
@@ -173,7 +176,7 @@ public sealed class PetWindow : Window
             }
         });
         renderedState = null;
-        diagnostics.Record("GUARD_RECOVERY", $"actions={(int)actions}; before: {before}; after: {WindowDiagnostics.Read(handle)}");
+        diagnostics.Record("GUARD_RECOVERY", $"actions={(int)actions}; covered={covered}; before: {before}; after: {WindowDiagnostics.Read(handle)}");
     }
     public PetWindowDiagnostic DiagnosticState()
     {

@@ -52,6 +52,23 @@ internal sealed class WindowDiagnostics
             result == 0 ? cloaked : 0, result);
     }
     public static void ShowWithoutActivation(IntPtr handle) => ShowWindow(handle, 4);
+    public static bool IsCovered(IntPtr handle)
+    {
+        if (WindowRect(handle) is not { } pet) return false;
+        // Topmost is a band, not a guarantee that no other topmost window covers us.
+        // Bound traversal because windows may be destroyed/reordered during the scan.
+        var visited = new HashSet<IntPtr> { handle };
+        for (var above = GetWindow(handle, 3); above != IntPtr.Zero && visited.Count < 256 && visited.Add(above);
+            above = GetWindow(above, 3)) // GW_HWNDPREV
+        {
+            GetWindowThreadProcessId(above, out var pid);
+            if (pid == 0 || pid == (uint)Environment.ProcessId || !IsWindowVisible(above) || IsIconic(above)) continue;
+            if (WindowRect(above) is not { } other) continue;
+            var state = Read(above);
+            if (WindowGuard.CoversPet(pet, other, state.Visible, state.Minimized, state.Cloaked != 0, false)) return true;
+        }
+        return false;
+    }
     public static void RestoreTopmost(IntPtr handle) => SetWindowPos(handle, new IntPtr(-1), 0, 0, 0, 0, 0x0001 | 0x0002 | 0x0010);
     public readonly record struct WindowStateSnapshot(bool Visible, bool Minimized, bool Topmost, uint Cloaked, int DwmResult)
     {
@@ -61,6 +78,7 @@ internal sealed class WindowDiagnostics
     private struct WindowPosition { public IntPtr Handle, InsertAfter; public int X, Y, Width, Height; public uint Flags; }
     [DllImport("user32.dll")] internal static extern bool IsWindow(IntPtr handle);
     [DllImport("user32.dll")] private static extern IntPtr GetForegroundWindow();
+    [DllImport("user32.dll")] private static extern IntPtr GetWindow(IntPtr handle, uint command);
     [DllImport("user32.dll")] private static extern uint GetWindowThreadProcessId(IntPtr handle, out uint pid);
     [DllImport("user32.dll")] private static extern bool IsWindowVisible(IntPtr handle);
     [DllImport("user32.dll")] private static extern bool IsIconic(IntPtr handle);
