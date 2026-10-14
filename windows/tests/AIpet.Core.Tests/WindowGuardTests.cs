@@ -11,7 +11,8 @@ public sealed class WindowGuardTests : TestSupport
         foreach (var minimized in new[] { false, true })
         foreach (var topmost in new[] { false, true })
         foreach (var cloaked in new[] { false, true })
-            Assert.Equal(WindowRecovery.None, WindowGuard.Decide(false, visible, minimized, topmost, cloaked));
+        foreach (var covered in new[] { false, true })
+            Assert.Equal(WindowRecovery.None, WindowGuard.Decide(false, visible, minimized, topmost, cloaked, covered));
     }
     [Theory]
     [InlineData(false, false, true, WindowRecovery.Show)]
@@ -23,6 +24,26 @@ public sealed class WindowGuardTests : TestSupport
         => Assert.Equal(expected, WindowGuard.Decide(true, visible, minimized, topmost, false));
     [Fact] public void CloakedOnlyLogsEvenWhenHiddenMinimizedAndNotTopmost()
         => Assert.Equal(WindowRecovery.LogCloaked, WindowGuard.Decide(true, false, true, false, true));
+    [Fact] public void CoveredTopmostWindowOnlyRestoresZOrder()
+        => Assert.Equal(WindowRecovery.RestoreTopmost, WindowGuard.Decide(true, true, false, true, false, true));
+    [Fact] public void CoveredCloakedWindowIsNotRaised()
+        => Assert.Equal(WindowRecovery.LogCloaked, WindowGuard.Decide(true, true, false, true, true, true));
+    [Theory]
+    [InlineData(true, false, false, false, true)]
+    [InlineData(false, false, false, false, false)]
+    [InlineData(true, true, false, false, false)]
+    [InlineData(true, false, true, false, false)]
+    [InlineData(true, false, false, true, false)]
+    public void OnlyVisibleExternalWindowsCoverPet(bool visible, bool minimized, bool cloaked, bool sameProcess, bool expected)
+        => Assert.Equal(expected, WindowGuard.CoversPet(new(0, 0, 100, 100), new(50, 50, 100, 100), visible, minimized, cloaked, sameProcess));
+    [Theory]
+    [InlineData(100, 0, 50, 50, false)]
+    [InlineData(0, 100, 50, 50, false)]
+    [InlineData(50, 50, 0, 50, false)]
+    [InlineData(50, 50, 50, 0, false)]
+    [InlineData(-50, -50, 60, 60, true)]
+    public void CoverageRequiresAreaOverlap(double x, double y, double width, double height, bool expected)
+        => Assert.Equal(expected, WindowGuard.CoversPet(new(0, 0, 100, 100), new(x, y, width, height), true, false, false, false));
     [Fact] public void WindowLogRateLimitsEachEventAndRetainsOnlyMetadata()
     {
         var log = new WindowLog(Path.Combine(Root, "window.log"));

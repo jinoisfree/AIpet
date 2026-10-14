@@ -15,10 +15,11 @@ public sealed class PetWindow : Window
     private bool visibilityInitialized, closed, destroyed, retired;
     private uint lastCloaked;
     private HwndSource? messageSource;
+    private WindowZOrderWatcher? zOrderWatcher;
+    private readonly WindowGuardSchedule guardSchedule = new();
     public bool IsAlive => !closed && !destroyed && !retired && WindowDiagnostics.IsWindow(new WindowInteropHelper(this).Handle);
     public bool IsShown => IsAlive && IsVisible && WindowDiagnostics.Read(new WindowInteropHelper(this).Handle) is { Visible: true, Minimized: false };
     private double lastOffscreenRecovery = double.NegativeInfinity;
-    private double lastGuardCheck = double.NegativeInfinity;
     public bool IntendedVisible { get; private set; }
     private readonly PetSurface surface;
     private readonly DispatcherTimer timer;
@@ -68,6 +69,7 @@ public sealed class PetWindow : Window
             SetWindowLongPtr(handle, -20, new IntPtr(GetWindowLongPtr(handle, -20).ToInt64() | 0x80 | 0x08000000));
             messageSource = HwndSource.FromHwnd(handle);
             messageSource?.AddHook(WindowMessage);
+            zOrderWatcher = new(RequestWindowGuard, diagnostics);
         };
         surface.MouseLeftButtonDown += (_, e) => {
             dragStart = ScreenCoordinates.CursorPixels;
@@ -92,12 +94,12 @@ public sealed class PetWindow : Window
         surface.LostMouseCapture += (_, _) => { dragging = false; dragStart = anchorStart = null; };
         surface.MouseRightButtonDown += (_, e) => { OpenMenu?.Invoke(); e.Handled = true; };
         timer = new DispatcherTimer(DispatcherPriority.Render) { Interval = TimeSpan.FromSeconds(1.0 / 60) };
-        timer.Tick += OnTick; timer.Start(); Closed += (_, _) => { closed = true; timer.Stop(); };
+        timer.Tick += OnTick; timer.Start(); Closed += (_, _) => { closed = true; StopWindowWatcher(); timer.Stop(); };
     }
     private void OnTick(object? sender, EventArgs e) => Tick();
     public void Retire()
     {
-        retired = true; desktop.Dispose(); timer.Stop(); timer.Tick -= OnTick;
+        retired = true; StopWindowWatcher(); desktop.Dispose(); timer.Stop(); timer.Tick -= OnTick;
         OpenDashboard = OpenMenu = Moved = DozeChanged = null;
         if (messageSource is { IsDisposed: false }) messageSource.RemoveHook(WindowMessage);
         messageSource = null;
@@ -106,10 +108,20 @@ public sealed class PetWindow : Window
     private IntPtr WindowMessage(IntPtr hwnd, int message, IntPtr wParam, IntPtr lParam, ref bool handled)
     {
         if (visibilityInitialized && ownWindowChangeDepth == 0 && !isQuitting()) diagnostics.Observe(message, wParam, lParam);
-        if (message == 0x0002) { destroyed = true; timer.Stop(); }
+        if (message == 0x0047 && visibilityInitialized && ownWindowChangeDepth == 0) RequestWindowGuard(); // WM_WINDOWPOSCHANGED
+        if (message == 0x0002) { destroyed = true; StopWindowWatcher(); timer.Stop(); }
         if (message == 0x0021) { handled = true; return new IntPtr(3); } // MA_NOACTIVATE
         if (message is 0x007E or 0x02E0) Dispatcher.BeginInvoke(new Action(() => { if (IsAlive && !dragging && dragStart is null) Constrain(); })); // display/DPI change
         return IntPtr.Zero;
+    }
+    private void RequestWindowGuard()
+    {
+        if (visibilityInitialized && IntendedVisible && !closed && !destroyed && !retired && !isQuitting())
+            guardSchedule.RequestCheck();
+    }
+    private void StopWindowWatcher()
+    {
+        zOrderWatcher?.Dispose(); zOrderWatcher = null;
     }
     private void OwnWindowChange(Action action)
     {
@@ -128,6 +140,7 @@ public sealed class PetWindow : Window
                 Show();
                 WindowDiagnostics.ShowWithoutActivation(new WindowInteropHelper(this).Handle);
                 Constrain();
+                WindowDiagnostics.RestoreTopmost(new WindowInteropHelper(this).Handle);
             }
             else Hide();
         });
@@ -135,13 +148,14 @@ public sealed class PetWindow : Window
     }
     private void CheckWindowGuard(double now)
     {
-        if (isQuitting() || now - lastGuardCheck < 1) return;
-        lastGuardCheck = now;
+        if (isQuitting() || !guardSchedule.CheckDue(now)) return;
         var handle = new WindowInteropHelper(this).Handle;
         if (handle == IntPtr.Zero) return;
         if (desktop.Follow(handle, IntendedVisible)) renderedState = null;
         var before = WindowDiagnostics.Read(handle);
-        var actions = WindowGuard.Decide(IntendedVisible, before.Visible, before.Minimized, before.Topmost, before.Cloaked != 0);
+        var covered = IntendedVisible && before.Visible && !before.Minimized && before.Cloaked == 0
+            && WindowDiagnostics.IsCovered(handle);
+        var actions = WindowGuard.Decide(IntendedVisible, before.Visible, before.Minimized, before.Topmost, before.Cloaked != 0, covered);
         if (before.Cloaked != lastCloaked)
         {
             diagnostics.Record("GUARD_CLOAKED", $"previous=0x{lastCloaked:X}; {before}");
@@ -173,7 +187,7 @@ public sealed class PetWindow : Window
             }
         });
         renderedState = null;
-        diagnostics.Record("GUARD_RECOVERY", $"actions={(int)actions}; before: {before}; after: {WindowDiagnostics.Read(handle)}");
+        diagnostics.Record("GUARD_RECOVERY", $"actions={(int)actions}; covered={covered}; before: {before}; after: {WindowDiagnostics.Read(handle)}");
     }
     public PetWindowDiagnostic DiagnosticState()
     {

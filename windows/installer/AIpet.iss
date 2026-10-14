@@ -1,6 +1,6 @@
 ; Keep AppId and per-user mode stable: reinstallations replace the same product.
 #ifndef AppVersion
-  #define AppVersion "1.0.11"
+  #define AppVersion "1.0.11.3"
 #endif
 [Setup]
 AppId={{4F55BDF9-B918-4231-9C02-25C17F960CD2}
