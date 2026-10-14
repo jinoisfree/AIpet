@@ -10,7 +10,8 @@
     <Product>AIpet</Product>
     <Company>jinoisfree</Company>
     <AssemblyTitle>AIpet</AssemblyTitle>
-    <Version>1.0.11-preview.2</Version>
+    <Version>1.0.11-preview.3</Version>
+    <FileVersion>1.0.11.3</FileVersion>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>Assets/Generated/AIpet.ico</ApplicationIcon>
     <StartupObject>AIpet.App.Program</StartupObject>

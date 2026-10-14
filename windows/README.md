@@ -1,4 +1,8 @@
-# AIpet Windows 1.0.11 미리보기 2
+# AIpet Windows 1.0.11 미리보기 3
+
+다른 앱의 창을 열거나 전환할 때 펫이 뒤에 남는 현상의 복구를 보완했습니다.
+현재 Windows 배포본은 [1.0.11 미리보기 3](https://github.com/jinoisfree/AIpet/releases/tag/windows-v1.0.11-preview.3)입니다.
+앱 버전은 `1.0.11-preview.3`, 실행 파일과 설치 프로그램의 숫자 버전은 `1.0.11.3`입니다.
 
 GitHub에서 **AIpet-Setup-win-x64.exe**를 받아 실행하세요. 다음 버전도 같은 설치 파일을
 실행하면 설치된 구버전 실행 파일을 새 파일로 교체합니다. 실행 중인 AIpet을 닫으라는
