@@ -2,7 +2,7 @@
 
 **AIpet**은 Codex와 Claude Code의 작업 상태를 알려 주는 독립형 데스크톱 펫입니다. macOS 정식 버전과 Windows 미리보기 버전을 제공합니다. AI가 작업하는 동안 태식이가 화면에 머물며 작업 중·확인 필요·응답 종료 등의 상태를 표시합니다.
 
-현재 macOS 소스 버전은 **1.0.11**입니다. Mac 앱은 Swift, AppKit, SwiftUI로, Windows 앱은 C# .NET 8 WPF로 구현했습니다. 실행할 때 Python, Node.js, API 키가 필요하지 않습니다.
+현재 macOS 소스 버전은 **1.0.12**입니다. Mac 앱은 Swift, AppKit, SwiftUI로, Windows 앱은 C# .NET 8 WPF로 구현했습니다. 실행할 때 Python, Node.js, API 키가 필요하지 않습니다.
 
 ## 운영체제별 다운로드
 
@@ -12,6 +12,21 @@
 | **Windows · x64** | [AIpet 1.0.11 Preview 3 ZIP](https://github.com/jinoisfree/AIpet/releases/download/windows-v1.0.11-preview.3/AIpet-1.0.11-preview.3-win-x64.zip) · [설치 프로그램](https://github.com/jinoisfree/AIpet/releases/download/windows-v1.0.11-preview.3/AIpet-Setup-win-x64.exe) | 창 전환 시 펫 가림 복구 보완 · 자체 포함 .NET 런타임 |
 
 업데이트: Mac은 실행 중인 AIpet을 종료하고 새 `AIpet.app`으로 덮어쓰세요. Windows는 설치 프로그램을 다시 실행하면 기존 설치본을 교체합니다. 두 방식 모두 설정을 유지합니다. Windows ZIP 사용자는 `AIpet.exe`를 종료한 뒤 새 파일로 교체하세요. Windows 설치 프로그램은 실행 중인 예전 AIpet을 종료하고 다른 위치의 예전 AIpet.exe를 정리합니다.
+
+### 자동 업데이트 (다음 배포부터)
+
+Mac **1.0.12**, Windows **1.0.12-preview.1** 소스에는 앱 내 업데이트가 포함되어 있습니다.
+위 표의 기존 배포본에는 이 기능이 없으므로, 기능이 포함된 새 배포본을 **처음 한 번은 직접 설치**해야 합니다.
+
+- 앱 실행 약 20초 뒤부터 확인하며, 이후 실행 중에는 마지막 확인으로부터 약 6시간 간격으로 새 버전을 조회합니다.
+- 새 버전이 있으면 **지금 업데이트할까요?**를 묻습니다. 동의하면 다운로드·검증·기존 앱 교체·재실행을 진행합니다. 이름·크기·위치 설정은 유지합니다.
+- 나중에 선택하면 같은 버전은 24시간 동안 다시 묻지 않습니다. 메뉴의 **업데이트 확인…**은 언제든 바로 확인합니다.
+- 메뉴의 **업데이트 자동 확인**을 끄면 자동 조회를 멈춥니다. 확인만 할 때는 설치 파일을 받지 않습니다.
+
+Git 커밋이나 푸시만으로는 업데이트가 배포되지 않습니다. 해당 OS용 새 버전과 설치 파일이
+[GitHub Releases](https://github.com/jinoisfree/AIpet/releases)에 공개되어야 인식합니다.
+Mac은 쓰기 가능한 위치의 실행 중인 앱을 교체합니다. Windows ZIP으로 실행했어도 업데이트에 동의하면
+기본 설치 위치에 설치하고 기존 사본을 정리합니다. [업데이트·배포 상세](docs/업데이트.md)
 
 Mac은 압축을 풀어 `AIpet.app`을, Windows는 `AIpet.exe`를 실행하세요.
 Windows의 실제 UI·DPI·AI 연동은 아직 사용자 PC에서 확인해야 하며, 서명되지 않은 실행 파일입니다.
