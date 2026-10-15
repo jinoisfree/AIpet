@@ -414,7 +414,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     @objc func screensChanged() { constrainPosition() }
     @objc func preview() {
         previewTimer?.invalidate(); isPreview = true; pet.previewLook = false
-        let names = ["쉬는 중", "오른쪽 이동", "왼쪽 이동", "손 흔들기", "점프", "오류", "확인 대기", "작업 중", "검토", "방향 보기 1", "방향 보기 2", "조는 중"]
+        let names = PetAnimation.allCases.map(\.name) + ["방향 보기 1", "방향 보기 2", "조는 중"]
         updatePreviewSubtitle()
         func show(_ row: Int) {
             guard row < names.count else { isPreview = false; pet.previewRow = nil; updatePet(); return }

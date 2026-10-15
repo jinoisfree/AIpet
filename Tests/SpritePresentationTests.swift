@@ -26,6 +26,14 @@ struct SpritePresentationTests {
         precondition(waveArt.width == 768 && waveArt.height == 208, "four wave frames")
         images[3] = (0..<4).map { waveArt.cropping(to: CGRect(x: $0 * 192, y: 0, width: 192, height: 208))! }
         metrics[3] = images[3].map { SpriteContentMetrics.measure($0)! }
+        let approvalSource = CGImageSourceCreateWithURL(URL(fileURLWithPath: CommandLine.arguments[5]) as CFURL, nil)!
+        let approval = CGImageSourceCreateImageAtIndex(approvalSource, 0, nil)!
+        precondition(approval.width == 1536 && approval.height == 208, "eight phone frames")
+        images[6] = (0..<8).map { approval.cropping(to: CGRect(x: $0 * 192, y: 0, width: 192, height: 208))! }
+        metrics[6] = images[6].map { SpriteContentMetrics.measure($0)! }
+        for metric in metrics[6] {
+            precondition(abs(metric.bounds.maxY - 194) <= 1 && abs(metric.bounds.midX - 113) <= 3, "phone center and ground")
+        }
         let dozeSource = CGImageSourceCreateWithURL(URL(fileURLWithPath: CommandLine.arguments[4]) as CFURL, nil)!
         let asleep = CGImageSourceCreateImageAtIndex(dozeSource, 0, nil)!
         precondition(asleep.width == 768 && asleep.height == 208, "one eye shut, both shut, then the head lower and lowest")
@@ -39,6 +47,10 @@ struct SpritePresentationTests {
         let idleScale = PetSpritePresentation.matching(metrics[0][0], to: reference).scale
         var transforms: [[PetSpritePresentation]] = []
         for (row, content) in metrics.enumerated() {
+            if row == 6 {
+                transforms.append(Array(repeating: PetSpritePresentation(scale: 1, offset: .zero), count: content.count))
+                continue
+            }
             transforms.append(content.map { PetSpritePresentation.matching((9...10).contains(row) ? $0 : content[0], to: reference,
                                                                            scale: row == 3 ? idleScale : nil) })
         }
@@ -62,12 +74,13 @@ struct SpritePresentationTests {
         for index in 0..<16 {
             precondition(abs(directions[index].height - directions[(index + 1) % 16].height) < 8, "adjacent look directions no longer jump in height")
         }
-        for row in 0..<9 {
+        for row in (0..<9).filter({ $0 != 6 }) {
             let rest = transforms[row][0].contentBounds(metrics[row][0].bounds)
             precondition(rest.height <= reference.bounds.height + 0.01, "ordinary poses use the smaller size budget")
             precondition(abs(rest.maxY - reference.bounds.maxY) < 0.01 && abs(rest.midX - reference.bounds.midX) < 0.01, "state transition shares baseline")
             precondition(transforms[row].allSatisfy { $0.scale == transforms[row][0].scale && $0.offset == transforms[row][0].offset }, "authored animation never auto-zooms per frame")
         }
+        precondition(transforms[6].count == 8 && transforms[6].allSatisfy { $0.scale == 1 && $0.offset == .zero }, "phone frames never refit or zoom")
         let jumpRest = transforms[4][0].contentBounds(metrics[4][0].bounds)
         let jumpPeak = transforms[4][2].contentBounds(metrics[4][2].bounds)
         precondition(jumpRest.maxY - jumpPeak.maxY > 20, "jump retains vertical lift")
@@ -115,6 +128,6 @@ struct SpritePresentationTests {
             }
         }
         save(overview, "sprite-size-overview.png")
-        print("PASS: 70 sheet frames, the redrawn wave and nodding off; reference unchanged; 34% jump removed; 16-direction continuity; stable state baselines; jump/lying motion preserved; hover bounds; scale range and clipping")
+        print("PASS: sheet frames, eight approval phone frames, the redrawn wave and nodding off; reference unchanged; 34% jump removed; 16-direction continuity; stable state baselines; jump/lying motion preserved; hover bounds; scale range and clipping")
     }
 }

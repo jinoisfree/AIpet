@@ -3,7 +3,7 @@ import ImageIO
 
 final class SpriteAtlas {
     /// The sheet's eleven rows, then the steps of nodding off.
-    let counts = [7, 8, 8, 4, 5, 8, 6, 6, 6, 8, 8, PetAnimationTimeline.dozeSteps.count]
+    let counts = [7, 8, 8, 4, 5, 8, 8, 6, 6, 8, 8, PetAnimationTimeline.dozeSteps.count]
     private let rasterizer = PetSpriteRasterizer()
     private var frames: [[NSImage]] = []
     private var presentations: [[PetSpritePresentation]] = []
@@ -16,16 +16,16 @@ final class SpriteAtlas {
     }
     init(resourceDirectory: URL? = nil) throws {
         guard let atlas = Self.sheet("spritesheet", width: 1536, height: 2288, directory: resourceDirectory), let wave = Self.sheet("wave", width: 768, height: 208, directory: resourceDirectory),
+              let approval = Self.sheet("approval-phone", width: 1536, height: 208, directory: resourceDirectory),
               let asleep = Self.sheet("doze", width: 768, height: 208, directory: resourceDirectory) else {
             throw NSError(domain: "Taesik", code: 1, userInfo: [NSLocalizedDescriptionKey: "펫 이미지 파일을 읽을 수 없습니다."])
         }
+        let separate = [PetAnimation.waving.rawValue: wave, PetAnimation.waiting.rawValue: approval]
         var metrics: [[SpriteContentMetrics]] = []
         for (row, count) in counts.enumerated() where row < PetAnimationTimeline.dozeRow {
             var images: [NSImage] = [], content: [SpriteContentMetrics] = []
             for column in 0..<count {
-                // The wave is drawn from its own slimmer art instead of the sheet's.
-                let waving = row == PetAnimation.waving.rawValue
-                guard let cell = (waving ? wave : atlas).cropping(to: CGRect(x: column * 192, y: waving ? 0 : row * 208, width: 192, height: 208)),
+                guard let cell = (separate[row] ?? atlas).cropping(to: CGRect(x: column * 192, y: separate[row] != nil ? 0 : row * 208, width: 192, height: 208)),
                       let measured = SpriteContentMetrics.measure(cell) else {
                     throw NSError(domain: "Taesik", code: 2, userInfo: [NSLocalizedDescriptionKey: "펫 동작 이미지를 읽을 수 없습니다."])
                 }
@@ -45,6 +45,11 @@ final class SpriteAtlas {
         // Waving is drawn at the idle pose's size, so the cat does not swell beside it.
         let idleScale = PetSpritePresentation.matching(metrics[0][0], to: reference).scale
         for (row, content) in metrics.enumerated() {
+            // Phone art already uses the displayed size and baseline.
+            if row == PetAnimation.waiting.rawValue {
+                presentations.append(content.map { _ in PetSpritePresentation(scale: 1, offset: .zero) })
+                continue
+            }
             let fixed = row == PetAnimation.waving.rawValue ? idleScale : nil
             presentations.append(content.map { metric in
                 PetSpritePresentation.matching((9...10).contains(row) ? metric : content[0], to: reference, scale: fixed)

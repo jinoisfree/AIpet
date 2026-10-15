@@ -8,6 +8,11 @@ struct SpriteRenderingTests {
         let output = URL(fileURLWithPath: CommandLine.arguments[2])
         try FileManager.default.createDirectory(at: output, withIntermediateDirectories: true)
         let atlas = try SpriteAtlas(resourceDirectory: resources)
+        precondition(atlas.counts[6] == 8 && atlas.counts[8] == 6)
+        let phoneCell = CGRect(x: -300, y: 20, width: 96, height: 104)
+        for frame in 0..<8 {
+            precondition(atlas.drawingRect(row: 6, frame: frame, in: phoneCell) == phoneCell, "phone presentation is identity")
+        }
         func pixels(_ image: CGImage) -> [UInt8] {
             let ctx = PetSpriteRasterizer.context(width: image.width, height: image.height)!
             ctx.draw(image, in: CGRect(x: 0, y: 0, width: image.width, height: image.height))

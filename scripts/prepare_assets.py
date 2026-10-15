@@ -14,6 +14,8 @@ WAVE = 'b0beffe97a9e093f92a56009ec341c924b9e4e49c36f8ff295e0ef4a7a9ea1ba'
 # The idle pose asleep and nodding, drawn by draw_doze.py and pinned the same way.
 DOZE = '9e5073f5811656ebdaba62eaedc6d060006092cfca4ca8239f401575f0a2bf99'
 
+APPROVAL = '8e7cbfb3695109aea42f2de574f8c9870ebde6850dabda5141d732bcd7951dfd'
+
 def prepare():
     source = PET / 'spritesheet.webp'
     assert hashlib.sha256(source.read_bytes()).hexdigest() == EXPECTED, 'Upstream asset hash changed'
@@ -22,6 +24,8 @@ def prepare():
     assert wave.size == (768, 208) and hashlib.sha256(wave.tobytes()).hexdigest() == WAVE, 'Wave art changed'
     doze = Image.open(PET / 'doze.png').convert('RGBA')
     assert doze.size == (768, 208) and hashlib.sha256(doze.tobytes()).hexdigest() == DOZE, 'Doze art changed'
+    approval = Image.open(PET / 'approval-phone.png').convert('RGBA')
+    assert approval.size == (1536, 208) and hashlib.sha256(approval.tobytes()).hexdigest() == APPROVAL, 'Approval phone art changed'
     atlas = Image.open(source).convert('RGBA')
     assert atlas.size == (1536, 2288)
     OUTPUT.mkdir(parents=True, exist_ok=True)

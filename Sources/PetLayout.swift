@@ -27,6 +27,13 @@ struct PetLayout {
     static let bubbleSize = CGSize(width: 330, height: 56)
     /// The pet as drawn inside its 192×208 cell, from the cell's top-left corner.
     static let visiblePet = CGRect(x: 54, y: 60, width: 118, height: 134)
+    /// Includes the phone at every angle; used only for screen placement.
+    static let placementPet = CGRect(x: 46, y: 59, width: 134, height: 136)
+    static func placementSprite(in cell: CGRect) -> CGRect {
+        let unit = cell.width / 192
+        return CGRect(x: cell.minX + placementPet.minX * unit, y: cell.maxY - placementPet.maxY * unit,
+                      width: placementPet.width * unit, height: placementPet.height * unit)
+    }
     static let petMargin: CGFloat = 4
     static func visibleSprite(in cell: CGRect) -> CGRect {
         let unit = cell.width / 192
@@ -34,7 +41,7 @@ struct PetLayout {
                       width: visiblePet.width * unit, height: visiblePet.height * unit)
     }
     static func constrainedSprite(_ sprite: CGRect, screen: CGRect, screenFrame: CGRect? = nil) -> CGRect {
-        let safe = screen.insetBy(dx: petMargin, dy: petMargin), visible = visibleSprite(in: sprite)
+        let safe = screen.insetBy(dx: petMargin, dy: petMargin), visible = placementSprite(in: sprite)
         let x = min(max(visible.minX, safe.minX), max(safe.minX, safe.maxX - visible.width))
         let y = min(max(visible.minY, safe.minY), max(safe.minY, (screenFrame?.maxY ?? safe.maxY) - visible.height))
         return sprite.offsetBy(dx: x - visible.minX, dy: y - visible.minY)

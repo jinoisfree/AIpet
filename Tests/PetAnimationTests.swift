@@ -4,6 +4,16 @@ import CoreGraphics
 @main
 struct PetAnimationTests {
     static func main() {
+        precondition(PetAnimation(state: .waiting) == .waiting)
+        var waitingColumns = Set<Int>()
+        for time in stride(from: 50.0, through: 53.0, by: 0.03) {
+            let frame = PetAnimationTimeline.frame(for: .waiting, elapsed: time)
+            precondition(frame.row == 6, "승인 대기는 세 번 이후에도 계속 재생")
+            waitingColumns.insert(frame.column)
+            precondition(PetAnimationTimeline.frame(for: .waiting, elapsed: time, reducedMotion: true) == PetAnimationFrame(row: 6, column: 0))
+        }
+        precondition(waitingColumns == Set(0..<8), "휴대폰 여덟 프레임 모두 재생")
+        precondition(PetAnimationTimeline.frame(for: .review, elapsed: 50).row == 0, "검토 동작 유지")
         let origin = CGPoint(x: -1200, y: 200)
         for index in 0..<16 {
             let angle = Double(index) * .pi / 8
