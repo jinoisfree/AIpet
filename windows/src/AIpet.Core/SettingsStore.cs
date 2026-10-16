@@ -2,7 +2,8 @@ using System.Text.Json;
 namespace AIpet.Core;
 
 public sealed record PetSettings(string PetName = PetIdentity.DefaultName, double PetScale = 100,
-    Point? Position = null, bool BubbleAlwaysShown = false, bool ClaudeUsageDirectEnabled = false, string? CodexPath = null)
+    Point? Position = null, bool BubbleAlwaysShown = false, bool ClaudeUsageDirectEnabled = false, string? CodexPath = null,
+    bool LaunchAtLogin = true)
 {
     public PetSettings Validated() => this with {
         PetName = PetName is not null && PetIdentity.ValidationMessage(PetName) is null ? PetIdentity.Normalized(PetName) : PetIdentity.DefaultName,

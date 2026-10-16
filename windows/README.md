@@ -43,6 +43,7 @@ ZIP은 설치 없이 사용할 수 있습니다. 다른 위치 또는 버전의 
 - 펫 클릭: 작업 목록. 드래그: 이동. 오른쪽 클릭: 메뉴.
 - 트레이 아이콘 왼쪽 클릭: 숨겨지거나 사라진 펫 다시 표시. 더블 클릭: 작업 목록. 오른쪽 클릭: 메뉴.
 - 종료: 오른쪽 클릭 또는 트레이 메뉴의 **AIpet 종료**.
+- 자동 실행: 기본으로 Windows에 로그인하면 펫이 자동으로 실행됩니다. 트레이 메뉴의 **Windows 시작 시 자동 실행**으로 끄고 켭니다. `HKCU\Software\Microsoft\Windows\CurrentVersion\Run`의 `AIpet` 값을 사용하며, 설치 프로그램으로 제거하면 함께 지워집니다.
 - 설정: `%APPDATA%\AIpet\settings.json`
 - 창 진단: `%LOCALAPPDATA%\AIpet\window.log` (최대 256 KiB). 펫이 사라지는 문제가 다시 나오면 이 파일을 전달해 주세요.
 - 오류 기록: `%LOCALAPPDATA%\AIpet\error.log` (최대 1 MiB, 오래된 내용부터 새로 시작).

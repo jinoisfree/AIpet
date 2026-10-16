@@ -40,6 +40,10 @@ Source: "..\README.md"; DestDir: "{app}"; Flags: ignoreversion
 Name: "{userprograms}\AIpet"; Filename: "{app}\AIpet.exe"; WorkingDir: "{app}"
 Name: "{userdesktop}\AIpet"; Filename: "{app}\AIpet.exe"; WorkingDir: "{app}"
 
+[Registry]
+; The app writes this value itself (on by default, switchable from the tray). Uninstall removes it.
+Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: none; ValueName: "AIpet"; Flags: uninsdeletevalue dontcreatekey
+
 [Run]
 Filename: "{app}\AIpet.exe"; Parameters: "--retire-old-copies"; Flags: runhidden waituntilterminated
 Filename: "{app}\AIpet.exe"; Description: "AIpet 실행"; Flags: nowait postinstall skipifsilent

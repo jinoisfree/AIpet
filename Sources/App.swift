@@ -107,7 +107,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         }
         refreshUsage()
         timer = Timer.scheduledTimer(withTimeInterval: 2, repeats: true) { [weak self] _ in self?.refresh() }
-        if !smokeMode { updates.start() }
+        if !smokeMode { updates.start(); LaunchAtLogin.apply() }
         if CommandLine.arguments.contains("--show-dashboard") { showDashboard() }
         if let index = CommandLine.arguments.firstIndex(of: "--ui-smoke"), CommandLine.arguments.count > index + 1 {
             let destination = URL(fileURLWithPath: CommandLine.arguments[index + 1])
@@ -203,6 +203,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         addMenu("업데이트 확인…", #selector(checkForUpdates))
         addMenu("업데이트 자동 확인", #selector(toggleAutomaticUpdates(_:)))
         menu.items.last?.state = updates.automatic ? .on : .off
+        addMenu("로그인 시 자동 실행", #selector(toggleLaunchAtLogin(_:)))
+        menu.items.last?.state = LaunchAtLogin.enabled ? .on : .off
         menu.addItem(.separator())
         addMenu("AIpet 종료", #selector(quit))
         statusItem.menu = menu
@@ -447,6 +449,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     @objc func checkForUpdates() { updates.check(manual: true) }
     @objc func toggleAutomaticUpdates(_ sender: NSMenuItem) {
         updates.automatic.toggle(); sender.state = updates.automatic ? .on : .off
+    }
+    @objc func toggleLaunchAtLogin(_ sender: NSMenuItem) {
+        LaunchAtLogin.enabled.toggle(); sender.state = LaunchAtLogin.enabled ? .on : .off
     }
     func applicationWillTerminate(_ notification: Notification) { updates.stop() }
 

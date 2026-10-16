@@ -14,7 +14,7 @@ WAVE = 'b0beffe97a9e093f92a56009ec341c924b9e4e49c36f8ff295e0ef4a7a9ea1ba'
 # The idle pose asleep and nodding, drawn by draw_doze.py and pinned the same way.
 DOZE = '9e5073f5811656ebdaba62eaedc6d060006092cfca4ca8239f401575f0a2bf99'
 
-APPROVAL = '8e7cbfb3695109aea42f2de574f8c9870ebde6850dabda5141d732bcd7951dfd'
+APPROVAL = '6f3d071b300057db16cbae17e941cb48380d703607729a639c8b0fe4e8c46f26'
 
 def prepare():
     source = PET / 'spritesheet.webp'
