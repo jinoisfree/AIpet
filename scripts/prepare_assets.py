@@ -9,12 +9,12 @@ ROOT = Path(__file__).resolve().parents[1]
 PET = ROOT / 'Resources' / 'Pet'
 OUTPUT = ROOT / '.build' / 'assets'
 EXPECTED = '316b98b0445cdf0ac50dda91128e5772366f49787a4634addbfb1409c99dca35'
-# The slimmer wave drawn by draw_wave.py, pinned by its pixels so that only an intended redraw changes it.
-WAVE = 'b0beffe97a9e093f92a56009ec341c924b9e4e49c36f8ff295e0ef4a7a9ea1ba'
-# The idle pose asleep and nodding, drawn by draw_doze.py and pinned the same way.
-DOZE = '9e5073f5811656ebdaba62eaedc6d060006092cfca4ca8239f401575f0a2bf99'
-
-APPROVAL = '6f3d071b300057db16cbae17e941cb48380d703607729a639c8b0fe4e8c46f26'
+# The idle pose with its right paw lifted, drawn by draw_wave.py and pinned by its pixels.
+WAVE = '69aaf32cb6f7a0840c562f1aebac7d47e90bc10cd6ef63f654656c18158b0d73'
+# The idle pose asleep, nodding with its mouth open and drooling, drawn by draw_doze.py.
+DOZE = '966271ce8e97c979b5f14fa49616e0edb498ebf3580504a61791a51893de61a1'
+# The idle pose with a sulky face, shaking its phone at the wrist.
+APPROVAL = 'e44747393e6313fd91fd40aa50ea5465a1ff1b3eb01492cc957be105356bcb57'
 
 def prepare():
     source = PET / 'spritesheet.webp'
@@ -28,6 +28,14 @@ def prepare():
     assert approval.size == (1536, 208) and hashlib.sha256(approval.tobytes()).hexdigest() == APPROVAL, 'Approval phone art changed'
     atlas = Image.open(source).convert('RGBA')
     assert atlas.size == (1536, 2288)
+    # The wave starts at idle and keeps the idle body below the raised arm.
+    idle = atlas.crop((0, 0, 192, 208))
+    assert wave.crop((0, 0, 192, 208)).tobytes() == idle.tobytes(), 'Wave starts from the idle pose'
+    for column in range(1, 4):
+        assert wave.crop((column*192, 111, column*192 + 192, 208)).tobytes() == idle.crop((0, 111, 192, 208)).tobytes(), 'Wave keeps the idle body'
+    # The phone shake also keeps the idle body below the arms.
+    for column in range(8):
+        assert approval.crop((column*192, 110, column*192 + 192, 208)).tobytes() == idle.crop((0, 110, 192, 208)).tobytes(), 'Phone shake keeps the idle body'
     OUTPUT.mkdir(parents=True, exist_ok=True)
     atlas.save(OUTPUT / 'spritesheet.png')
     assert Image.open(OUTPUT / 'spritesheet.png').tobytes() == atlas.tobytes()

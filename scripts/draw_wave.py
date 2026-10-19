@@ -1,26 +1,24 @@
 #!/usr/bin/env python3
-"""Redraw the wave from the upstream sheet: a shorter arm and a slimmer body. Run by hand; the build only reads the result."""
-import bisect
+"""Draw the wave on the idle pose: the sheet's own raised paw, its forearm shortened, set on the idle cat's body so the
+body and size stay those of the idle pose. Run by hand; the build only reads the result."""
 import math
 from pathlib import Path
-from PIL import Image, ImageDraw
+from PIL import Image, ImageDraw, ImageFilter
 
 ROOT = Path(__file__).resolve().parents[1]
 PET = ROOT / 'Resources' / 'Pet'
 W, H = 192, 208
-INK = (16, 12, 12, 255)
-# Each line is narrowed about PIVOT: the face a little, the belly side more, the back most.
-PIVOT, BAND, FACE, BELLY, BACK = 100.0, 22.0, 0.94, 0.90, 0.76
-FACE_ENDS, BODY_BEGINS = 78, 116
 # The raised arm in the second and third frames: where it leaves the body, the paw's tip, and its left edge.
 ARMS = {1: ((128.5, 81), (140.5, 28.5), [(118.8, 81), (118.8, 60), (124.0, 45.5), (121.6, 39.5)]),
         2: ((127.5, 82), (139.5, 27.5), [(118.8, 82), (118.8, 60), (123.4, 45.5), (121.0, 39.5)])}
-WRIST, CUT = 33, 13
-
-
-def ease(v):
-    v = min(1.0, max(0.0, v))
-    return v*v*(3 - 2*v)
+WRIST, CUT = 33, 23
+# The top of the paw that holds the phone in the sheet's frame with the arm down; the pillow above it is uncovered there.
+REST_PAW = 63
+# The raised arm is moved onto the idle pose by this much: the idle cat sits a little higher and to the left in its cell.
+SHIFT = (-2, -3)
+# Of the sheet's frame, the arm and the body beside it down to SEAM (in the idle pose's rows) replace the idle drawing,
+# right of the phone (PHONE) and below the pillow's top (TOP). Below SEAM both bodies share one outline.
+PHONE, TOP, SEAM = 118, 47, 110
 
 
 def sample(im, x, y):
@@ -39,8 +37,9 @@ def sample(im, x, y):
     return (round(acc[0]/acc[3]), round(acc[1]/acc[3]), round(acc[2]/acc[3]), round(acc[3]))
 
 
-def shorter_arm(im, base, tip, left, pillow):
-    """Take CUT px out of the forearm, between the body and the wrist; the paw itself moves down whole."""
+def shorter_arm(im, base, tip, left, pillow, rest):
+    """Take CUT px out of the forearm, between the body and the wrist; the paw itself moves down whole.
+    Above the lowered paw of `rest` (the frame with the arm down) the pillow and its outline are taken from that frame."""
     length = math.hypot(tip[0] - base[0], tip[1] - base[1])
     u = ((tip[0] - base[0])/length, (tip[1] - base[1])/length)
     n = (-u[1], u[0])
@@ -60,9 +59,7 @@ def shorter_arm(im, base, tip, left, pillow):
     for y in range(H):
         for x in range(W):
             if arm.getpixel((x, y)) and along(x + 0.5, y + 0.5) >= 0:
-                out.putpixel((x, y), pillow if behind.getpixel((x, y)) else (0, 0, 0, 0))
-    # The pillow's top edge carries on to where the paw now is.
-    ImageDraw.Draw(out).line([(119.5, 42.4), (130.5, 42.9)], fill=INK, width=3)
+                out.putpixel((x, y), rest.getpixel((x, y)) if y < REST_PAW else pillow if behind.getpixel((x, y)) else (0, 0, 0, 0))
     for y in range(H):
         for x in range(W):
             t2 = along(x + 0.5, y + 0.5)
@@ -90,68 +87,22 @@ def is_cat(p):
     return min(r, g, b) > 200 or (30 <= r <= 110 and r - b > 15)  # fur, or the brown patch
 
 
-def slimmer(im):
-    """Narrow the body and leave the face nearly as it was. The outline along the back is carried over whole so the
-    line keeps its weight, and the pillow's outer edge stays put; the plain blue between the two takes up the difference."""
-    px = im.load()
-    widths = [0.0]
-    for x in range(W):
-        widths.append(widths[-1] + BACK + (BELLY - BACK)*ease((x + 0.5 - (PIVOT - BAND))/(2*BAND)))
-
-    def total(x):
-        k = min(W - 1, max(0, int(x)))
-        return widths[k] + (widths[k + 1] - widths[k])*(x - k)
-
-    def body(x):
-        return PIVOT + total(x) - total(PIVOT)
-
-    def face(x):
-        return PIVOT + (x - PIVOT)*FACE
-
-    # Where the cat begins on each line, never jumping more than 2 px from one line to the next.
-    first = [next((x for x in range(W) if is_cat(px[x, y])), W) for y in range(H)]
-    for y in range(1, H):
-        first[y] = min(first[y], first[y - 1] + 2)
-    for y in range(H - 2, -1, -1):
-        first[y] = min(first[y], first[y + 1] + 2)
-    out = Image.new('RGBA', (W, H), (0, 0, 0, 0))
-    po = out.load()
-    for y in range(H):
-        u = ease((y - FACE_ENDS)/(BODY_BEGINS - FACE_ENDS))
-        inner, outer = first[y] + 0.5, first[y] - 4.0  # the outline along the back
-        edge = body(inner)
-        opaque = next((x for x in range(W) if px[x, y][3] >= 128), None)
-        pillow = opaque + 5.0 if opaque is not None and opaque + 5 < outer - 2 else None
-
-        def moved(x):
-            if x >= inner:
-                return body(x)
-            if x >= outer:
-                return edge - (inner - x)
-            start = edge - (inner - outer)
-            if pillow is None:
-                return start - (outer - x)
-            if x <= pillow:
-                return face(x)
-            return face(pillow) + (start - face(pillow))*(x - pillow)/(outer - pillow)
-
-        lands = [(1 - u)*face(x) + u*moved(x) for x in range(W + 1)]  # where each pixel boundary ends up
-        row = [tuple(c*p[3]/255 for c in p[:3]) + (p[3],) for p in (px[x, y] for x in range(W))]
-        acc = [[0.0]*4 for _ in range(W)]
-        for i in range(W*4):  # four samples to the pixel
-            t = (i + 0.5)/4
-            k = bisect.bisect_right(lands, t) - 1
-            if k < 0 or k >= W:
-                continue
-            sx = k + (t - lands[k])/(lands[k + 1] - lands[k]) - 0.5
-            a0 = min(W - 1, max(0, int(sx // 1)))
-            a1 = min(W - 1, a0 + 1)
-            w = min(1.0, max(0.0, sx - a0))
-            for c in range(4):
-                acc[i // 4][c] += (row[a0][c]*(1 - w) + row[a1][c]*w)/4
-        for x in range(W):
-            r, g, b, a = acc[x]
-            po[x, y] = (round(r*255/a), round(g*255/a), round(b*255/a), round(a)) if a >= 1 else (0, 0, 0, 0)
+def on_idle(idle, frame):
+    """Lay the sheet frame's arm, with its outline and the body beside it, over the idle pose."""
+    patch = Image.new('L', (W, H), 0)
+    for y in range(TOP, SEAM - SHIFT[1] + 1):
+        for x in range(PHONE + 1, W):
+            if is_cat(frame.getpixel((x, y))):
+                patch.putpixel((x, y), 255)
+    patch = patch.filter(ImageFilter.MaxFilter(7))  # take in the outline around the fur
+    ImageDraw.Draw(patch).rectangle([0, 0, PHONE - 1, H], fill=0)
+    ImageDraw.Draw(patch).rectangle([0, SEAM - SHIFT[1] + 1, W, H], fill=0)
+    moved = Image.new('RGBA', (W, H), (0, 0, 0, 0))
+    moved.paste(frame, SHIFT)
+    mask = Image.new('L', (W, H), 0)
+    mask.paste(patch, SHIFT)
+    out = idle.copy()
+    out.alpha_composite(Image.composite(moved, Image.new('RGBA', (W, H), (0, 0, 0, 0)), mask))
     return out
 
 
@@ -160,11 +111,14 @@ def draw():
     frames = [atlas.crop((c*W, 3*H, c*W + W, 4*H)) for c in range(4)]
     pillow = frames[0].getpixel((122, 52))
     sheet = Image.new('RGBA', (W*4, H), (0, 0, 0, 0))
-    for column, frame in enumerate(frames):
-        if column in ARMS:
-            base, tip, left = ARMS[column]
-            frame = shorter_arm(frame, base, tip, left, pillow)
-        sheet.paste(slimmer(frame), (column*W, 0))
+    idle = atlas.crop((0, 0, W, H))
+    # It rests, then waves: up, over, and up again.
+    for column, raised in enumerate([None, 1, 2, 1]):
+        frame = idle
+        if raised:
+            base, tip, left = ARMS[raised]
+            frame = on_idle(idle, shorter_arm(frames[raised], base, tip, left, pillow, frames[0]))
+        sheet.paste(frame, (column*W, 0))
     sheet.save(PET / 'wave.png')
     print('손 흔들기 그림을 다시 그렸습니다:', PET / 'wave.png')
 

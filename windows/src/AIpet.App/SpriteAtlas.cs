@@ -36,9 +36,16 @@ public sealed class SpriteAtlas
         frames.Add(PetAnimationTimeline.DozeSteps.Select(s => drawings[s.Image]).ToArray()); pixels.Add(frames[11].Select(Rgba).ToArray());
         metrics.Add(Enumerable.Repeat(metrics[0][0], Counts[11]).ToArray());
         var reference = metrics[10][7]; interactionBounds = reference.Bounds;
-        var idleScale = PetSpritePresentation.Matching(metrics[0][0], reference).Scale;
         for (var row = 0; row < metrics.Count; row++)
-            presentations.Add(metrics[row].Select(m => row == 6 ? new PetSpritePresentation(1, default) : PetSpritePresentation.Matching(row is 9 or 10 ? m : metrics[row][0], reference, row == 3 ? idleScale : null)).ToArray());
+        {
+            if (row is 3 or 6)
+            {
+                // Both motions are drawn over the idle pose and share its exact displayed size and position.
+                presentations.Add(Enumerable.Repeat(presentations[0][0], metrics[row].Length).ToArray());
+                continue;
+            }
+            presentations.Add(metrics[row].Select(m => PetSpritePresentation.Matching(row is 9 or 10 ? m : metrics[row][0], reference)).ToArray());
+        }
     }
     public BitmapSource Image(PetAnimationFrame frame) => frames[frame.Row][frame.Column % Counts[frame.Row]];
     public Rect DrawingRect(PetAnimationFrame frame, Rect cell) => presentations[frame.Row][frame.Column % Counts[frame.Row]].DrawingRect(cell);

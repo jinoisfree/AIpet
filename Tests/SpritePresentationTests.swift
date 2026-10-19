@@ -19,7 +19,7 @@ struct SpritePresentationTests {
         precondition(reference.bounds == CGRect(x: 54, y: 60, width: 118, height: 134), "pixel orientation and source reference")
         let referenceTransform = PetSpritePresentation.matching(reference, to: reference)
         precondition(referenceTransform.scale == 1 && referenceTransform.offset == .zero, "smaller reference must remain unchanged")
-        // What the app draws: the wave from its own slimmer art, and nodding off from the idle pose drawn asleep.
+        // What the app draws: the wave drawn on the idle pose, and nodding off with an open mouth and drool.
         let sheetWave = metrics[3][0]
         let waveSource = CGImageSourceCreateWithURL(URL(fileURLWithPath: CommandLine.arguments[3]) as CFURL, nil)!
         let waveArt = CGImageSourceCreateImageAtIndex(waveSource, 0, nil)!
@@ -32,35 +32,35 @@ struct SpritePresentationTests {
         images[6] = (0..<8).map { approval.cropping(to: CGRect(x: $0 * 192, y: 0, width: 192, height: 208))! }
         metrics[6] = images[6].map { SpriteContentMetrics.measure($0)! }
         for metric in metrics[6] {
-            precondition(abs(metric.bounds.maxY - 194) <= 1 && abs(metric.bounds.midX - 113) <= 3, "phone center and ground")
+            precondition(metric.bounds == metrics[0][0].bounds, "the phone shake keeps the idle pose's body and size")
         }
         let dozeSource = CGImageSourceCreateWithURL(URL(fileURLWithPath: CommandLine.arguments[4]) as CFURL, nil)!
         let asleep = CGImageSourceCreateImageAtIndex(dozeSource, 0, nil)!
         precondition(asleep.width == 768 && asleep.height == 208, "one eye shut, both shut, then the head lower and lowest")
         let dozing = (0..<4).map { asleep.cropping(to: CGRect(x: $0 * 192, y: 0, width: 192, height: 208))! }, dozeBounds = dozing.map { SpriteContentMetrics.measure($0)!.bounds }
-        precondition(dozeBounds[0] == metrics[0][0].bounds && dozeBounds[1] == metrics[0][0].bounds, "shutting the eyes changes nothing else of the idle pose")
+        precondition(dozeBounds[0] == metrics[0][0].bounds && dozeBounds[1] == metrics[0][0].bounds, "shut eyes, open mouth and drool stay within the idle pose")
         for nod in dozeBounds.dropFirst(2) {
             precondition(nod.maxY == dozeBounds[1].maxY && nod.minX == dozeBounds[1].minX && nod.maxX == dozeBounds[1].maxX, "only the head moves; the body keeps its size and place")
         }
         precondition(dozeBounds[2].minY - dozeBounds[1].minY == 3 && dozeBounds[3].minY - dozeBounds[1].minY == 6, "the head nods forward a little, then a little more")
         images.append([images[0][0]] + dozing); metrics.append(Array(repeating: metrics[0][0], count: 5))
-        let idleScale = PetSpritePresentation.matching(metrics[0][0], to: reference).scale
         var transforms: [[PetSpritePresentation]] = []
         for (row, content) in metrics.enumerated() {
-            if row == 6 {
-                transforms.append(Array(repeating: PetSpritePresentation(scale: 1, offset: .zero), count: content.count))
+            if row == 3 || row == 6 {
+                transforms.append(Array(repeating: transforms[0][0], count: content.count))
                 continue
             }
-            transforms.append(content.map { PetSpritePresentation.matching((9...10).contains(row) ? $0 : content[0], to: reference,
-                                                                           scale: row == 3 ? idleScale : nil) })
+            transforms.append(content.map { PetSpritePresentation.matching((9...10).contains(row) ? $0 : content[0], to: reference) })
         }
         let idleShown = transforms[0][0].contentBounds(metrics[0][0].bounds)
         let sheetWaveShown = PetSpritePresentation.matching(sheetWave, to: reference).contentBounds(sheetWave.bounds)
         precondition(sheetWaveShown.width > idleShown.width, "the sheet's own wave was drawn wider than the idle pose")
-        for (frame, metric) in metrics[3].enumerated() {
-            let shown = transforms[3][frame].contentBounds(metric.bounds)
-            precondition(transforms[3][frame].scale == idleScale && shown.width < idleShown.width, "the wave is drawn at the idle pose's size and is narrower than it")
-            precondition(shown.minY >= idleShown.minY, "the shortened arm reaches no higher than the idle pose's ear")
+        for row in [3, 6] {
+            for (frame, metric) in metrics[row].enumerated() {
+                let transform = transforms[row][frame]
+                precondition(transform.scale == transforms[0][0].scale && transform.offset == transforms[0][0].offset, "the wave and phone shake use the idle pose's exact transform")
+                precondition(metric.bounds == metrics[0][0].bounds && transform.contentBounds(metric.bounds) == idleShown, "the lifted paw and shaken phone stay within the idle pose")
+            }
         }
         precondition(transforms[11].allSatisfy { $0.scale == transforms[0][0].scale && $0.offset == transforms[0][0].offset }, "nodding off stays exactly where the idle pose is")
         let smaller = referenceTransform.contentBounds(reference.bounds)
@@ -74,13 +74,13 @@ struct SpritePresentationTests {
         for index in 0..<16 {
             precondition(abs(directions[index].height - directions[(index + 1) % 16].height) < 8, "adjacent look directions no longer jump in height")
         }
-        for row in (0..<9).filter({ $0 != 6 }) {
+        for row in 0..<9 {
             let rest = transforms[row][0].contentBounds(metrics[row][0].bounds)
             precondition(rest.height <= reference.bounds.height + 0.01, "ordinary poses use the smaller size budget")
             precondition(abs(rest.maxY - reference.bounds.maxY) < 0.01 && abs(rest.midX - reference.bounds.midX) < 0.01, "state transition shares baseline")
             precondition(transforms[row].allSatisfy { $0.scale == transforms[row][0].scale && $0.offset == transforms[row][0].offset }, "authored animation never auto-zooms per frame")
         }
-        precondition(transforms[6].count == 8 && transforms[6].allSatisfy { $0.scale == 1 && $0.offset == .zero }, "phone frames never refit or zoom")
+        precondition(transforms[6].count == 8, "all eight phone frames are presented")
         let jumpRest = transforms[4][0].contentBounds(metrics[4][0].bounds)
         let jumpPeak = transforms[4][2].contentBounds(metrics[4][2].bounds)
         precondition(jumpRest.maxY - jumpPeak.maxY > 20, "jump retains vertical lift")

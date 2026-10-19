@@ -175,8 +175,8 @@ Codex·직접 조회 값은 60분, Claude 앱 기록은 30분간 유효합니다
 
 확인이 필요한 작업이 있으면 뚱한 표정으로 휴대폰을 계속 흔들며, 일시 중지·동작 줄이기 설정은 그대로 적용됩니다.
 
-승인 대기 그림 `Resources/Pet/approval-phone.png`는 ddots 커밋 `19ff4172877ef863f233bf326f51f574e542bd90`의 최종본(몸은 고정하고 폰과 앞발만 흔듦)을 사용하며, 두 플랫폼의 빌드에서 크기와 RGBA 픽셀 해시를 검증합니다.
+승인 대기 그림 `Resources/Pet/approval-phone.png`는 ddots 커밋 `db74d44b6ca79c39683220cfcd13cded6a44b62b`의 그림(기본 자세 크기 그대로, 뚱한 표정으로 폰만 손목 축으로 흔듦)을 사용하며, 두 플랫폼의 빌드에서 크기와 RGBA 픽셀 해시를 검증합니다.
 
-원본 자산은 [codex-pet-taesik](https://github.com/jinoisfree/codex-pet-taesik)의 커밋 `d277416db1cf0b465e72f6839035d8c46e338d35`에서 가져왔습니다. manifest와 WebP의 원본 바이트를 유지하며, 빌드용 PNG는 원본과 픽셀 단위로 비교합니다. 손 흔들기 동작만은 원본 시트를 바탕으로 팔을 짧게, 몸을 날씬하게 다시 그린 `Resources/Pet/wave.png`를 씁니다. 조는 모습은 쉬는 그림에서 눈을 감기고 머리만 조금 내린 `Resources/Pet/doze.png`를 씁니다. 두 그림은 `scripts/draw_wave.py`, `scripts/draw_doze.py`를 손으로 돌려 만들며, 빌드는 결과만 읽고 픽셀 해시로 고정합니다.
+원본 자산은 [codex-pet-taesik](https://github.com/jinoisfree/codex-pet-taesik)의 커밋 `d277416db1cf0b465e72f6839035d8c46e338d35`에서 가져왔습니다. manifest와 WebP의 원본 바이트를 유지하며, 빌드용 PNG는 원본과 픽셀 단위로 비교합니다. 손 흔들기는 기본 자세에서 오른손만 드는 `Resources/Pet/wave.png`를 씁니다. 조는 모습은 쉬는 그림에서 눈을 감기고, 두 눈을 감으면 입을 벌리고 침을 흘리며 고개를 숙일수록 침이 길어지는 `Resources/Pet/doze.png`를 씁니다. 두 그림은 `scripts/draw_wave.py`, `scripts/draw_doze.py`를 손으로 돌려 만들며, 빌드는 결과만 읽고 픽셀 해시로 고정합니다.
 
 공개 저장소이지만 별도의 오픈 소스 재사용 허가는 부여하지 않습니다. 기존 **All rights reserved** 조건을 유지합니다. 자세한 내용은 [LICENSE](LICENSE)와 [자산 이용 조건](Resources/Pet/LICENSE)을 확인하세요.

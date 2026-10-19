@@ -34,7 +34,7 @@ final class SpriteAtlas {
             }
             frames.append(images); metrics.append(content)
         }
-        // Only the head changes while it dozes: the idle frame, one eye shut, then both and the head nodding.
+        // The idle frame, one eye shut, then both shut with an open mouth, drooling as the head nods.
         let drawings = [frames[0][0]] + (0..<4).compactMap { asleep.cropping(to: CGRect(x: $0 * 192, y: 0, width: 192, height: 208)) }
             .map { NSImage(cgImage: $0, size: NSSize(width: 192, height: 208)) }
         frames.append(PetAnimationTimeline.dozeSteps.map { drawings[$0.image] })
@@ -42,17 +42,14 @@ final class SpriteAtlas {
         // The smaller, front-facing look pose from the user's comparison remains unchanged.
         let reference = metrics[10][7]
         interactionBounds = reference.bounds
-        // Waving is drawn at the idle pose's size, so the cat does not swell beside it.
-        let idleScale = PetSpritePresentation.matching(metrics[0][0], to: reference).scale
         for (row, content) in metrics.enumerated() {
-            // Phone art already uses the displayed size and baseline.
-            if row == PetAnimation.waiting.rawValue {
-                presentations.append(content.map { _ in PetSpritePresentation(scale: 1, offset: .zero) })
+            if row == PetAnimation.waving.rawValue || row == PetAnimation.waiting.rawValue {
+                // Both motions are drawn over the idle pose and share its exact displayed size and position.
+                presentations.append(Array(repeating: presentations[0][0], count: content.count))
                 continue
             }
-            let fixed = row == PetAnimation.waving.rawValue ? idleScale : nil
             presentations.append(content.map { metric in
-                PetSpritePresentation.matching((9...10).contains(row) ? metric : content[0], to: reference, scale: fixed)
+                PetSpritePresentation.matching((9...10).contains(row) ? metric : content[0], to: reference)
             })
         }
     }
