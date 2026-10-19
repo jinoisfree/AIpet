@@ -3,7 +3,8 @@ public enum PetAnimation { Idle, Right, Left, Waving, Jumping, Failed, Waiting, 
 public static class PetAnimations
 {
     public static PetAnimation FromState(WorkState state) => (PetAnimation)state.Row();
-    public static string Name(this PetAnimation animation) => new[] { "쉬는 중", "오른쪽 이동", "왼쪽 이동", "손 흔들기", "점프", "오류", "확인 대기", "작업 중", "검토" }[(int)animation];
+    public static string Name(this PetAnimation animation) => new[] { "쉬는 중", "오른쪽 이동", "왼쪽 이동", "손 흔들기", "점프", "오류", "승인 대기 · 폰 흔들기", "작업 중", "검토" }[(int)animation];
+    public static bool RepeatsWhileActive(this PetAnimation animation) => animation == PetAnimation.Waiting;
     public static bool AllowsLook(this PetAnimation animation) => animation is PetAnimation.Idle or PetAnimation.Running or PetAnimation.Waving;
 }
 public readonly record struct PetAnimationFrame(int Row, int Column);
@@ -20,11 +21,11 @@ public static class PetAnimationTimeline
             PetAnimation.Waving => [.. Enumerable.Repeat(0.140, 3), 0.280],
             PetAnimation.Jumping => [.. Enumerable.Repeat(0.140, 4), 0.280],
             PetAnimation.Failed => [.. Enumerable.Repeat(0.140, 7), 0.240],
-            PetAnimation.Waiting => [.. Enumerable.Repeat(0.150, 5), 0.260],
+            PetAnimation.Waiting => [.. Enumerable.Repeat(0.120, 8)],
             _ => [.. Enumerable.Repeat(0.150, 5), 0.280]
         };
         var cycle = durations.Sum(); var time = Math.Max(0, double.IsFinite(elapsed) ? elapsed : 0);
-        if (animation != PetAnimation.Idle && !loop && time >= cycle * 3) return Frame(PetAnimation.Idle, time - cycle * 3);
+        if (animation != PetAnimation.Idle && !animation.RepeatsWhileActive() && !loop && time >= cycle * 3) return Frame(PetAnimation.Idle, time - cycle * 3);
         var remaining = time % cycle;
         for (var column = 0; column < durations.Length; column++) { if (remaining < durations[column]) return new((int)animation, column); remaining -= durations[column]; }
         return new((int)animation, durations.Length - 1);

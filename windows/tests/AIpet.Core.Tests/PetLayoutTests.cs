@@ -5,6 +5,9 @@ public sealed class PetLayoutTests : TestSupport
     [Fact]
     public void ScalingDisplayEdgesThoughtTrailAndMotion()
     {
+        Check(PetLayout.VisiblePet == new Rect(54, 60, 118, 134));
+        Check(PetLayout.VisibleSprite(new Rect(0, 0, 192, 208)) == new Rect(54, 14, 118, 134));
+        Check(PetLayout.PlacementPet == new Rect(46, 59, 134, 136));
         var small = new PetLayout(0.5); var large = new PetLayout(2);
         Check(small.BubbleRect.Size == large.BubbleRect.Size, "캐릭터 배율이 말풍선에 영향을 주면 안 됩니다.");
         Check(small.BubbleRect.Size == new Size(330, 56), "말풍선 기준 크기가 유지되어야 합니다.");
@@ -27,7 +30,9 @@ public sealed class PetLayoutTests : TestSupport
             var placement = new PetPlacement(new Point(x, y), scale, screen);
             var globalSprite = placement.SpriteRect.Offset(placement.WindowFrame.MinX, placement.WindowFrame.MinY);
             var globalBubble = placement.BubbleRect.Offset(placement.WindowFrame.MinX, placement.WindowFrame.MinY);
-            var visible = PetLayout.VisibleSprite(globalSprite);
+            Check(globalSprite.Size == new Size(192 * scale, 208 * scale));
+            Check(PetLayout.PlacementSprite(globalSprite).Contains(PetLayout.VisibleSprite(globalSprite)));
+            var visible = PetLayout.PlacementSprite(globalSprite);
             Check(screen.Inset(4, 4).Inset(-0.001, -0.001).Contains(visible), "보이는 그림은 화면 안 4pt");
             Check(screen.Inset(12, 12).Contains(globalBubble), "말풍선은 화면 안 12pt");
             if (x < screen.MinX) Check(Math.Abs(visible.MinX - screen.MinX - 4) < 0.001);
@@ -56,7 +61,7 @@ public sealed class PetLayoutTests : TestSupport
         foreach (var y in new[] { screen.MinY - 1000, full.MaxY + 1000 })
         {
             var placement = new PetPlacement(new Point(x, y), scale, screen, full);
-            var visible = PetLayout.VisibleSprite(placement.GlobalSprite); var bubble = placement.GlobalBubble;
+            var visible = PetLayout.PlacementSprite(placement.GlobalSprite); var bubble = placement.GlobalBubble;
             Check(visible.MinX >= screen.MinX + 4 && visible.MaxX <= screen.MaxX - 4 && visible.MinY >= screen.MinY + 4);
             Check(visible.MaxY <= full.MaxY + 0.001, "위쪽은 전체 화면 안");
             if (x < screen.MinX) Check(Math.Abs(visible.MinX - screen.MinX - 4) < 0.001);
@@ -66,7 +71,7 @@ public sealed class PetLayoutTests : TestSupport
             {
                 Check(Math.Abs(visible.MaxY - full.MaxY) < 0.001 && placement.BubbleBelow, "화면 맨 위에서는 여백 없이, 말풍선은 아래");
                 var legacy = new PetPlacement(new Point(x, y), scale, screen);
-                Check(Math.Abs(PetLayout.VisibleSprite(legacy.GlobalSprite).MaxY - screen.MaxY + 4) < 0.001, "전체 화면 미지정 시 기존 위쪽 4pt");
+                Check(Math.Abs(PetLayout.PlacementSprite(legacy.GlobalSprite).MaxY - screen.MaxY + 4) < 0.001, "전체 화면 미지정 시 기존 위쪽 4pt");
             }
             Check(screen.Inset(12, 12).Contains(bubble) && !visible.Intersects(bubble), "말풍선은 메뉴 막대 아래 12pt, 그림과 겹치지 않음");
             var below = placement.BubbleBelow; var end = PetLayout.TrailEnd(placement.GlobalSprite, below); var circles = ThoughtTrail.Circles(bubble, end, below);
@@ -79,7 +84,7 @@ public sealed class PetLayoutTests : TestSupport
         var left = new PetPlacement(default(Point), 0.25, new(0, 0, 1000, 800));
         Check(left.GlobalSprite.MinX == 0 && left.GlobalBubble.MinX == 12, "그림은 허용된 위치를 유지하고 말풍선만 화면 안으로 이동");
         var top = new PetPlacement(new Point(988, 790), 0.25, new(0, 0, 1000, 800));
-        Check(top.BubbleBelow && PetLayout.VisibleSprite(top.GlobalSprite).MaxX == 996 && top.GlobalBubble.MaxX == 988, "우측 그림 4pt, 아래 말풍선 12pt");
+        Check(top.BubbleBelow && PetLayout.PlacementSprite(top.GlobalSprite).MaxX == 996 && top.GlobalBubble.MaxX == 988, "우측 그림 4pt, 아래 말풍선 12pt");
         var motionScreen = new Rect(0, 0, 1000, 800); var motion = new PetBubbleMotion();
         motion.Retarget(new(12, 12), motionScreen, 0); motion.Retarget(new(658, 732), motionScreen, 0);
         var first = motion.Step(1.0 / 30);

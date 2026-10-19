@@ -35,6 +35,7 @@ public sealed class PetApplication : Application
     private DashboardWindow? dashboard;
     private OptionsWindow? options;
     private DispatcherTimer pollTimer = null!;
+    private AppUpdater updates = null!;
     private bool polling, quitting;
     public bool Paused { get; private set; }
     public string? SelectedID { get; private set; }
@@ -47,8 +48,9 @@ public sealed class PetApplication : Application
         usage.Configure(Paused, settings.ClaudeUsageDirectEnabled, settings.CodexPath);
         try
         {
-            atlas = new SpriteAtlas(); BuildTray(); CreatePet(); UpdatePet();
+            atlas = new SpriteAtlas(); updates = new AppUpdater(Quit); BuildTray(); CreatePet(); UpdatePet();
             new CopyLocations(CopyLocations.DefaultPath).Add(new WindowsCopies().CurrentPath);
+            StartupRegistration.Apply(settings.LaunchAtLogin);
         }
         catch (Exception error) { Program.Errors.Append(error); MessageBox.Show(error.Message, "AIpet"); quitting = true; Shutdown(1); return; }
         guardTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
@@ -60,6 +62,7 @@ public sealed class PetApplication : Application
         pollTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
         pollTimer.Tick += async (_, _) => await Refresh(); pollTimer.Start();
         _ = Refresh();
+        updates.Start();
     }
     private void OpenPetMenu() { SetForegroundWindow(menu.Handle); menu.Show(Forms.Cursor.Position); }
     private void PetClosed(object? sender, EventArgs e)
@@ -166,6 +169,14 @@ public sealed class PetApplication : Application
         Item("진단 정보 저장", SaveDiagnostics);
         Item("옵션…", ShowOptions); Item("위치 초기화", ResetPetPosition);
         Item("동작 미리보기", () => Preview(false)); Item("마우스 시선 미리보기", () => Preview(true));
+        menu.Items.Add(new Forms.ToolStripSeparator());
+        Item("업데이트 확인…", () => _ = updates.Check(true));
+        var automaticUpdates = new Forms.ToolStripMenuItem("업데이트 자동 확인") { Checked = updates.Automatic, CheckOnClick = true };
+        automaticUpdates.Click += (_, _) => updates.Automatic = automaticUpdates.Checked;
+        menu.Items.Add(automaticUpdates);
+        var launchAtLogin = new Forms.ToolStripMenuItem("Windows 시작 시 자동 실행") { Checked = settings.LaunchAtLogin, CheckOnClick = true };
+        launchAtLogin.Click += (_, _) => { settings = settings with { LaunchAtLogin = launchAtLogin.Checked }; Save(); StartupRegistration.Apply(launchAtLogin.Checked); };
+        menu.Items.Add(launchAtLogin);
         menu.Items.Add(new Forms.ToolStripSeparator()); Item("AIpet 종료", Quit);
         using var resource = GetResourceStream(new Uri("pack://application:,,,/AIpet;component/Assets/Generated/AIpet.ico")).Stream;
         using var icon = new System.Drawing.Icon(resource);
@@ -241,7 +252,7 @@ public sealed class PetApplication : Application
     private void Quit() { quitting = true; SavePosition(); Shutdown(); }
     protected override void OnExit(ExitEventArgs e)
     {
-        quitting = true; usage.Configure(true, settings.ClaudeUsageDirectEnabled, settings.CodexPath); pollTimer?.Stop(); guardTimer?.Stop(); ReleasePet();
+        quitting = true; updates?.Dispose(); usage.Configure(true, settings.ClaudeUsageDirectEnabled, settings.CodexPath); pollTimer?.Stop(); guardTimer?.Stop(); ReleasePet();
         if (tray is not null) { tray.Visible = false; tray.Icon?.Dispose(); tray.Dispose(); }
         menu?.Dispose(); base.OnExit(e);
     }

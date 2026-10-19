@@ -4,6 +4,9 @@ import SwiftUI
 @main
 struct TaesikMain {
     static func main() {
+        if CommandLine.arguments.dropFirst().first == "--install-update" {
+            exit(AppUpdateInstaller.runHelper(CommandLine.arguments))
+        }
         if let index = CommandLine.arguments.firstIndex(of: "--hook"), CommandLine.arguments.count > index + 1,
            let provider = Provider(rawValue: CommandLine.arguments[index + 1]) {
             var destination: URL?
@@ -57,6 +60,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     let usageMonitor = UsageMonitor()
     let usageStarted = Date()
     var usageTimer: Timer?
+    let updates = MacAppUpdater()
     var usageStatusLabel: NSTextField?
     var usageAccountsLabel: NSTextField?
     var smokeMode: Bool { CommandLine.arguments.contains("--ui-smoke") }
@@ -103,6 +107,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         }
         refreshUsage()
         timer = Timer.scheduledTimer(withTimeInterval: 2, repeats: true) { [weak self] _ in self?.refresh() }
+        if !smokeMode { updates.start(); LaunchAtLogin.apply() }
         if CommandLine.arguments.contains("--show-dashboard") { showDashboard() }
         if let index = CommandLine.arguments.firstIndex(of: "--ui-smoke"), CommandLine.arguments.count > index + 1 {
             let destination = URL(fileURLWithPath: CommandLine.arguments[index + 1])
@@ -194,6 +199,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         addMenu("동작 미리보기", #selector(preview))
         addMenu("마우스 시선 미리보기", #selector(previewPointer))
         addMenu("승인 알림 연결 안내", #selector(showHooksHelp))
+        menu.addItem(.separator())
+        addMenu("업데이트 확인…", #selector(checkForUpdates))
+        addMenu("업데이트 자동 확인", #selector(toggleAutomaticUpdates(_:)))
+        menu.items.last?.state = updates.automatic ? .on : .off
+        addMenu("로그인 시 자동 실행", #selector(toggleLaunchAtLogin(_:)))
+        menu.items.last?.state = LaunchAtLogin.enabled ? .on : .off
         menu.addItem(.separator())
         addMenu("AIpet 종료", #selector(quit))
         statusItem.menu = menu
@@ -405,7 +416,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
     @objc func screensChanged() { constrainPosition() }
     @objc func preview() {
         previewTimer?.invalidate(); isPreview = true; pet.previewLook = false
-        let names = ["쉬는 중", "오른쪽 이동", "왼쪽 이동", "손 흔들기", "점프", "오류", "확인 대기", "작업 중", "검토", "방향 보기 1", "방향 보기 2", "조는 중"]
+        let names = PetAnimation.allCases.map(\.name) + ["방향 보기 1", "방향 보기 2", "조는 중"]
         updatePreviewSubtitle()
         func show(_ row: Int) {
             guard row < names.count else { isPreview = false; pet.previewRow = nil; updatePet(); return }
@@ -435,6 +446,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSWindowDelegate {
         if alert.runModal() == .alertFirstButtonReturn, let url = Bundle.main.url(forResource: "연결안내", withExtension: "html") { NSWorkspace.shared.open(url) }
     }
     @objc func quit() { NSApp.terminate(nil) }
+    @objc func checkForUpdates() { updates.check(manual: true) }
+    @objc func toggleAutomaticUpdates(_ sender: NSMenuItem) {
+        updates.automatic.toggle(); sender.state = updates.automatic ? .on : .off
+    }
+    @objc func toggleLaunchAtLogin(_ sender: NSMenuItem) {
+        LaunchAtLogin.enabled.toggle(); sender.state = LaunchAtLogin.enabled ? .on : .off
+    }
+    func applicationWillTerminate(_ notification: Notification) { updates.stop() }
 
     func capture(destination: URL) {
         try? FileManager.default.createDirectory(at: destination, withIntermediateDirectories: true)

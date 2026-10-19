@@ -4,6 +4,10 @@ import CoreGraphics
 @main
 struct PetLayoutTests {
     static func main() {
+        let cell = CGRect(x: 0, y: 0, width: 192, height: 208)
+        precondition(PetLayout.visiblePet == CGRect(x: 54, y: 60, width: 118, height: 134))
+        precondition(PetLayout.visibleSprite(in: cell) == CGRect(x: 54, y: 14, width: 118, height: 134))
+        precondition(PetLayout.placementPet == CGRect(x: 46, y: 59, width: 134, height: 136))
         let small = PetLayout(scale: 0.5), large = PetLayout(scale: 2)
         precondition(small.bubbleRect.size == large.bubbleRect.size, "캐릭터 배율이 말풍선에 영향을 주면 안 됩니다.")
         precondition(small.bubbleRect.size == CGSize(width: 330, height: 56), "말풍선 기준 크기가 유지되어야 합니다.")
@@ -27,7 +31,9 @@ struct PetLayoutTests {
                         let placement = PetPlacement(spriteOrigin: CGPoint(x: x, y: y), scale: scale, visibleFrame: screen)
                         let globalSprite = placement.spriteRect.offsetBy(dx: placement.windowFrame.minX, dy: placement.windowFrame.minY)
                         let globalBubble = placement.bubbleRect.offsetBy(dx: placement.windowFrame.minX, dy: placement.windowFrame.minY)
-                        let visible = PetLayout.visibleSprite(in: globalSprite)
+                        precondition(globalSprite.size == CGSize(width: 192 * scale, height: 208 * scale))
+                        precondition(PetLayout.placementSprite(in: globalSprite).contains(PetLayout.visibleSprite(in: globalSprite)))
+                        let visible = PetLayout.placementSprite(in: globalSprite)
                         precondition(screen.insetBy(dx: 4, dy: 4).insetBy(dx: -0.001, dy: -0.001).contains(visible), "보이는 그림은 화면 안 4pt")
                         precondition(screen.insetBy(dx: 12, dy: 12).contains(globalBubble), "말풍선은 화면 안 12pt")
                         if x < screen.minX { precondition(abs(visible.minX - screen.minX - 4) < 0.001) }
@@ -60,7 +66,7 @@ struct PetLayoutTests {
                 for x in [screen.minX - 1000, screen.midX, screen.maxX + 1000] {
                     for y in [screen.minY - 1000, full.maxY + 1000] {
                         let placement = PetPlacement(spriteOrigin: CGPoint(x: x, y: y), scale: scale, visibleFrame: screen, screenFrame: full)
-                        let visible = PetLayout.visibleSprite(in: placement.globalSprite), bubble = placement.globalBubble
+                        let visible = PetLayout.placementSprite(in: placement.globalSprite), bubble = placement.globalBubble
                         precondition(visible.minX >= screen.minX + 4 && visible.maxX <= screen.maxX - 4 && visible.minY >= screen.minY + 4)
                         precondition(visible.maxY <= full.maxY + 0.001, "위쪽은 전체 화면 안")
                         if x < screen.minX { precondition(abs(visible.minX - screen.minX - 4) < 0.001) }
@@ -69,7 +75,7 @@ struct PetLayoutTests {
                         else {
                             precondition(abs(visible.maxY - full.maxY) < 0.001 && placement.bubbleBelow, "화면 맨 위에서는 여백 없이, 말풍선은 아래")
                             let legacy = PetPlacement(spriteOrigin: CGPoint(x: x, y: y), scale: scale, visibleFrame: screen)
-                            precondition(abs(PetLayout.visibleSprite(in: legacy.globalSprite).maxY - screen.maxY + 4) < 0.001, "전체 화면 미지정 시 기존 위쪽 4pt")
+                            precondition(abs(PetLayout.placementSprite(in: legacy.globalSprite).maxY - screen.maxY + 4) < 0.001, "전체 화면 미지정 시 기존 위쪽 4pt")
                         }
                         precondition(screen.insetBy(dx: 12, dy: 12).contains(bubble) && !visible.intersects(bubble), "말풍선은 메뉴 막대 아래 12pt, 그림과 겹치지 않음")
                         let below = placement.bubbleBelow
@@ -88,7 +94,7 @@ struct PetLayoutTests {
         let left = PetPlacement(spriteOrigin: .zero, scale: 0.25, visibleFrame: CGRect(x: 0, y: 0, width: 1000, height: 800))
         precondition(left.globalSprite.minX == 0 && left.globalBubble.minX == 12, "그림은 허용된 위치를 유지하고 말풍선만 화면 안으로 이동")
         let top = PetPlacement(spriteOrigin: CGPoint(x: 988, y: 790), scale: 0.25, visibleFrame: CGRect(x: 0, y: 0, width: 1000, height: 800))
-        precondition(top.bubbleBelow && PetLayout.visibleSprite(in: top.globalSprite).maxX == 996 && top.globalBubble.maxX == 988, "우측 그림 4pt, 아래 말풍선 12pt")
+        precondition(top.bubbleBelow && PetLayout.placementSprite(in: top.globalSprite).maxX == 996 && top.globalBubble.maxX == 988, "우측 그림 4pt, 아래 말풍선 12pt")
         let screen = CGRect(x: 0, y: 0, width: 1000, height: 800)
         var motion = PetBubbleMotion()
         motion.retarget(CGPoint(x: 12, y: 12), visibleFrame: screen, now: 0)

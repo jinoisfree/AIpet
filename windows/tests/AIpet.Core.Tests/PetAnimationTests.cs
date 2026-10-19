@@ -6,6 +6,18 @@ public sealed class PetAnimationTests : TestSupport
     [Fact]
     public void DirectionsTimingAndDozing()
     {
+        Check(PetAnimations.FromState(WorkState.Waiting) == PetAnimation.Waiting);
+        var waitingColumns = new HashSet<int>();
+        for (var i = 0; i <= 100; i++)
+        {
+            var time = 50 + i * 0.03;
+            var frame = Frame(PetAnimation.Waiting, time);
+            Check(frame.Row == 6, "승인 대기는 세 번 이후에도 계속 재생");
+            waitingColumns.Add(frame.Column);
+            Check(Frame(PetAnimation.Waiting, time, reducedMotion: true) == new PetAnimationFrame(6, 0));
+        }
+        Check(waitingColumns.SetEquals(Enumerable.Range(0, 8)), "휴대폰 여덟 프레임 모두 재생");
+        Check(Frame(PetAnimation.Review, 50).Row == 0, "검토 동작 유지");
         var origin = new Point(-1200, 200);
         for (var index = 0; index < 16; index++)
         {

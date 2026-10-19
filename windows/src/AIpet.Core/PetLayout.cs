@@ -22,6 +22,13 @@ public readonly record struct PetLayout(double Scale)
 {
     public static Size BubbleSize => new(330, 56);
     public static Rect VisiblePet => new(54, 60, 118, 134);
+    // Includes the phone at every angle; used only for screen placement.
+    public static Rect PlacementPet => new(46, 59, 134, 136);
+    public static Rect PlacementSprite(Rect cell)
+    {
+        var unit = cell.Width / 192;
+        return new(cell.MinX + PlacementPet.MinX * unit, cell.MaxY - PlacementPet.MaxY * unit, PlacementPet.Width * unit, PlacementPet.Height * unit);
+    }
     public const double PetMargin = 4;
     public static Rect VisibleSprite(Rect cell)
     {
@@ -30,7 +37,7 @@ public readonly record struct PetLayout(double Scale)
     }
     public static Rect ConstrainedSprite(Rect sprite, Rect screen, Rect? screenFrame = null)
     {
-        var safe = screen.Inset(PetMargin, PetMargin); var visible = VisibleSprite(sprite);
+        var safe = screen.Inset(PetMargin, PetMargin); var visible = PlacementSprite(sprite);
         var x = Math.Min(Math.Max(visible.MinX, safe.MinX), Math.Max(safe.MinX, safe.MaxX - visible.Width));
         var y = Math.Min(Math.Max(visible.MinY, safe.MinY), Math.Max(safe.MinY, (screenFrame?.MaxY ?? safe.MaxY) - visible.Height));
         return sprite.Offset(x - visible.MinX, y - visible.MinY);

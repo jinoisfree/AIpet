@@ -13,10 +13,12 @@ if ((Test-Path $target) -or (Test-Path $settingsRoot) -or (Test-Path $registryKe
     throw 'Installer tests require a clean Windows account.'
 }
 function Run-Setup {
-    param([string]$LogName)
+    param([string]$LogName, [switch]$AppUpdate)
     $logPath = Join-Path $env:RUNNER_TEMP $LogName
     Write-Output "START: $LogName"
-    $process = Start-Process $setup -ArgumentList @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', "/LOG=`"$logPath`"") -PassThru
+    $setupArguments = @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', "/LOG=`"$logPath`"")
+    if ($AppUpdate) { $setupArguments += '/AIPETUPDATE=1' }
+    $process = Start-Process $setup -ArgumentList $setupArguments -PassThru
     if (!$process.WaitForExit(120000)) { try { $process.Kill($true) } catch { }; throw "Setup timeout: $LogName" }
     $process.Refresh()
     Write-Output "END: $LogName exit=$($process.ExitCode)"
@@ -59,6 +61,11 @@ try {
     New-Item -ItemType Directory $settingsRoot | Out-Null
     $saved = '{"petName":"업데이트 테스트","petScale":125,"bubbleAlwaysShown":true}'
     [IO.File]::WriteAllText($settings, $saved)
+    # Keep the installer fixture independent of any future published release.
+    New-Item -ItemType Directory -Force $dataRoot | Out-Null
+    $updates = Join-Path $dataRoot 'updates.json'
+    $updatePreferences = '{"automatic":false}'
+    [IO.File]::WriteAllText($updates, $updatePreferences)
     # Simulate an older binary without version metadata; same installer must replace it.
     [IO.File]::WriteAllText("$target\AIpet.exe", 'old build')
     Run-Setup 'AIpet-upgrade.log'
@@ -128,13 +135,33 @@ try {
     Stop-Process -Id $portable.Id -Force
     if (!$portable.WaitForExit(10000)) { throw 'Portable fixture did not exit.' }
     Write-Output 'PASS: ZIP takeover and same-copy no-op; no files deleted.'
+    # The updater's silent-install flag must replace a running app and launch the new one.
+    $pet = Start-Copy "$target\AIpet.exe"
+    Run-Setup 'AIpet-auto-update.log' -AppUpdate
+    if (!$pet.WaitForExit(10000)) { throw 'Auto update did not stop the previous process.' }
+    $deadline = [DateTime]::UtcNow.AddSeconds(15)
+    do {
+        $restarted = @(Get-Process -Name AIpet -ErrorAction SilentlyContinue | Where-Object {
+            try { $_.MainModule.FileName -eq "$target\AIpet.exe" -and $_.Id -ne $pet.Id } catch { $false }
+        })
+        if ($restarted.Count -eq 0) { Start-Sleep -Milliseconds 250 }
+    } while ($restarted.Count -eq 0 -and [DateTime]::UtcNow -lt $deadline)
+    if ($restarted.Count -ne 1) { throw 'Auto update did not launch exactly one installed app.' }
+    Start-Sleep -Seconds 3
+    $restarted[0].Refresh()
+    if ($restarted[0].HasExited) { throw 'Updated app exited immediately after restart.' }
+    Assert-Installed; Assert-Settings
+    if ([IO.File]::ReadAllText($updates) -ne $updatePreferences) { throw 'Auto update changed update preferences.' }
+    Stop-Process -Id $restarted[0].Id -Force
+    if (!$restarted[0].WaitForExit(10000)) { throw 'Updated app did not stop for uninstall.' }
+    Write-Output 'PASS: silent auto update replaces, restarts, and preserves settings and update preferences.'
     $uninstall = Start-Process "$target\unins000.exe" -ArgumentList '/VERYSILENT /SUPPRESSMSGBOXES /NORESTART' -PassThru -Wait
     if ($uninstall.ExitCode -ne 0 -or (Test-Path "$target\AIpet.exe") -or (Test-Path $registryKey)) { throw 'Uninstall did not remove the installed app.' }
     if ([IO.File]::ReadAllText($settings) -ne $saved) { throw 'Uninstall removed user settings.' }
     Write-Output 'Installer checks passed: fresh install, old binary replacement, running app upgrade, single registration, settings preservation, uninstall.'
 }
 finally {
-    foreach ($fixtureProcess in @($pet, $portable, $stopped, $foreign, $duplicate)) {
+    foreach ($fixtureProcess in (@($pet, $portable, $stopped, $foreign, $duplicate) + @($restarted))) {
         if ($fixtureProcess -and !$fixtureProcess.HasExited) { try { $fixtureProcess.Kill($true); $fixtureProcess.WaitForExit(10000) | Out-Null } catch { } }
     }
 }

@@ -266,7 +266,7 @@ public sealed class PetWindow : Window
         {
             if (!preview) return (Status.Headline, Status.Subtitle);
             if (previewLook) return ("미리보기 · 마우스 바라보기", $"{Identity.Name} · 포인터를 움직여 보세요");
-            string[] names = ["쉬는 중", "오른쪽 이동", "왼쪽 이동", "손 흔들기", "점프", "오류", "확인 대기", "작업 중", "검토", "방향 보기 1", "방향 보기 2", "조는 중"];
+            string[] names = ["쉬는 중", "오른쪽 이동", "왼쪽 이동", "손 흔들기", "점프", "오류", "승인 대기 · 폰 흔들기", "작업 중", "검토", "방향 보기 1", "방향 보기 2", "조는 중"];
             return ($"미리보기 · {names[previewRow ?? 0]}", $"{Identity.Name}의 동작 · 실제 작업과 별개");
         }
     }

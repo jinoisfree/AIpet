@@ -10,8 +10,8 @@
     <Product>AIpet</Product>
     <Company>jinoisfree</Company>
     <AssemblyTitle>AIpet</AssemblyTitle>
-    <Version>1.0.11-preview.3</Version>
-    <FileVersion>1.0.11.3</FileVersion>
+    <Version>1.0.12-preview.1</Version>
+    <FileVersion>1.0.12.1</FileVersion>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>Assets/Generated/AIpet.ico</ApplicationIcon>
     <StartupObject>AIpet.App.Program</StartupObject>
@@ -24,6 +24,7 @@
     <Resource Include="Assets/Generated/spritesheet.png" />
     <Resource Include="Assets/Generated/AIpet.ico" />
     <Resource Include="../../../Resources/Pet/wave.png" Link="Assets/wave.png" />
+    <Resource Include="../../../Resources/Pet/approval-phone.png" Link="Assets/approval-phone.png" />
     <Resource Include="../../../Resources/Pet/doze.png" Link="Assets/doze.png" />
   </ItemGroup>
   <Target Name="CheckAssets" BeforeTargets="PrepareForBuild">

@@ -6,8 +6,9 @@ enum PetAnimation: Int, CaseIterable {
 
     init(state: WorkState) { self = PetAnimation(rawValue: state.row) ?? .idle }
     var name: String {
-        ["쉬는 중", "오른쪽 이동", "왼쪽 이동", "손 흔들기", "점프", "오류", "확인 대기", "작업 중", "검토"][rawValue]
+        ["쉬는 중", "오른쪽 이동", "왼쪽 이동", "손 흔들기", "점프", "오류", "승인 대기 · 폰 흔들기", "작업 중", "검토"][rawValue]
     }
+    var repeatsWhileActive: Bool { self == .waiting }
     var allowsLook: Bool { self == .idle || self == .running || self == .waving }
 }
 
@@ -31,12 +32,12 @@ enum PetAnimationTimeline {
         case .waving: durations = Array(repeating: 0.140, count: 3) + [0.280]
         case .jumping: durations = Array(repeating: 0.140, count: 4) + [0.280]
         case .failed: durations = Array(repeating: 0.140, count: 7) + [0.240]
-        case .waiting: durations = Array(repeating: 0.150, count: 5) + [0.260]
+        case .waiting: durations = Array(repeating: 0.120, count: 8)
         case .review: durations = Array(repeating: 0.150, count: 5) + [0.280]
         }
         let cycle = durations.reduce(0, +)
         let time = max(0, elapsed.isFinite ? elapsed : 0)
-        if animation != .idle && !loop && time >= cycle * 3 {
+        if animation != .idle && !animation.repeatsWhileActive && !loop && time >= cycle * 3 {
             return frame(for: .idle, elapsed: time - cycle * 3)
         }
         var remaining = time.truncatingRemainder(dividingBy: cycle)

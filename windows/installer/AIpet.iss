@@ -1,6 +1,6 @@
 ; Keep AppId and per-user mode stable: reinstallations replace the same product.
 #ifndef AppVersion
-  #define AppVersion "1.0.11.3"
+  #define AppVersion "1.0.12.1"
 #endif
 [Setup]
 AppId={{4F55BDF9-B918-4231-9C02-25C17F960CD2}
@@ -40,8 +40,19 @@ Source: "..\README.md"; DestDir: "{app}"; Flags: ignoreversion
 Name: "{userprograms}\AIpet"; Filename: "{app}\AIpet.exe"; WorkingDir: "{app}"
 Name: "{userdesktop}\AIpet"; Filename: "{app}\AIpet.exe"; WorkingDir: "{app}"
 
+[Registry]
+; The app writes this value itself (on by default, switchable from the tray). Uninstall removes it.
+Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: none; ValueName: "AIpet"; Flags: uninsdeletevalue dontcreatekey
+
 [Run]
 Filename: "{app}\AIpet.exe"; Parameters: "--retire-old-copies"; Flags: runhidden waituntilterminated
 Filename: "{app}\AIpet.exe"; Description: "AIpet 실행"; Flags: nowait postinstall skipifsilent
+Filename: "{app}\AIpet.exe"; Flags: nowait skipifnotsilent; Check: IsAppUpdate
 
 ; No wildcard deletion: user settings/logs live outside {app} and survive upgrades/uninstall.
+
+[Code]
+function IsAppUpdate: Boolean;
+begin
+  Result := ExpandConstant('{param:AIPETUPDATE|0}') = '1';
+end;

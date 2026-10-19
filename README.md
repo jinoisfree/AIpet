@@ -2,16 +2,31 @@
 
 **AIpet**은 Codex와 Claude Code의 작업 상태를 알려 주는 독립형 데스크톱 펫입니다. macOS 정식 버전과 Windows 미리보기 버전을 제공합니다. AI가 작업하는 동안 태식이가 화면에 머물며 작업 중·확인 필요·응답 종료 등의 상태를 표시합니다.
 
-현재 macOS 소스 버전은 **1.0.11**입니다. Mac 앱은 Swift, AppKit, SwiftUI로, Windows 앱은 C# .NET 8 WPF로 구현했습니다. 실행할 때 Python, Node.js, API 키가 필요하지 않습니다.
+현재 macOS 소스 버전은 **1.0.12**로, 정식 배포본과 같습니다. Mac 앱은 Swift, AppKit, SwiftUI로, Windows 앱은 C# .NET 8 WPF로 구현했습니다. 실행할 때 Python, Node.js, API 키가 필요하지 않습니다.
 
 ## 운영체제별 다운로드
 
 | 운영체제 | 다운로드 | 상태 |
 |---|---|---|
-| **Mac · Apple Silicon** | [AIpet 1.0.11 ZIP](https://github.com/jinoisfree/AIpet/releases/download/v1.0.11/AIpet-1.0.11-arm64.zip) | 정식 배포본 · macOS 13 이상 빌드 대상 |
-| **Windows · x64** | [AIpet 1.0.11 Preview 3 ZIP](https://github.com/jinoisfree/AIpet/releases/download/windows-v1.0.11-preview.3/AIpet-1.0.11-preview.3-win-x64.zip) · [설치 프로그램](https://github.com/jinoisfree/AIpet/releases/download/windows-v1.0.11-preview.3/AIpet-Setup-win-x64.exe) | 창 전환 시 펫 가림 복구 보완 · 자체 포함 .NET 런타임 |
+| **Mac · Apple Silicon** | [AIpet 1.0.12 ZIP](https://github.com/jinoisfree/AIpet/releases/download/v1.0.12/AIpet-1.0.12-arm64.zip) | 정식 배포본 · macOS 13 이상 빌드 대상 · 앱 내 업데이트 |
+| **Windows · x64** | [AIpet 1.0.12 Preview 1 ZIP](https://github.com/jinoisfree/AIpet/releases/download/windows-v1.0.12-preview.1/AIpet-1.0.12-preview.1-win-x64.zip) · [설치 프로그램](https://github.com/jinoisfree/AIpet/releases/download/windows-v1.0.12-preview.1/AIpet-Setup-win-x64.exe) | 앱 내 업데이트 · 시작 시 자동 실행 · 새 모션 · 자체 포함 .NET 런타임 |
 
-업데이트: Mac은 실행 중인 AIpet을 종료하고 새 `AIpet.app`으로 덮어쓰세요. Windows는 설치 프로그램을 다시 실행하면 기존 설치본을 교체합니다. 두 방식 모두 설정을 유지합니다. Windows ZIP 사용자는 `AIpet.exe`를 종료한 뒤 새 파일로 교체하세요. Windows 설치 프로그램은 실행 중인 예전 AIpet을 종료하고 다른 위치의 예전 AIpet.exe를 정리합니다.
+앱 내 업데이트가 없는 구버전에서 처음 올릴 때는 직접 설치하세요. Mac은 실행 중인 AIpet을 종료하고 새 `AIpet.app`으로 교체하세요. Windows는 설치 프로그램을 실행하면 기존 설치본을 교체합니다. 두 방식 모두 설정을 유지합니다. Windows ZIP을 계속 사용하려면 `AIpet.exe`를 종료한 뒤 새 파일로 교체하세요. Windows 설치 프로그램은 실행 중인 예전 AIpet을 종료하고 다른 위치의 예전 AIpet.exe를 정리합니다.
+
+### 자동 업데이트
+
+Mac **1.0.12**, Windows **1.0.12-preview.1**부터 앱 내 업데이트가 포함됩니다.
+그 이전 버전 사용자는 위 배포본을 **처음 한 번은 직접 설치**해야 합니다.
+
+- 앱 실행 약 20초 뒤부터 확인하며, 이후 실행 중에는 마지막 확인으로부터 약 6시간 간격으로 새 버전을 조회합니다.
+- 새 버전이 있으면 **지금 업데이트할까요?**를 묻습니다. 동의하면 다운로드·검증·기존 앱 교체·재실행을 진행합니다. 이름·크기·위치 설정은 유지합니다.
+- 나중에 선택하면 같은 버전은 24시간 동안 다시 묻지 않습니다. 메뉴의 **업데이트 확인…**은 언제든 바로 확인합니다.
+- 메뉴의 **업데이트 자동 확인**을 끄면 자동 조회를 멈춥니다. 확인만 할 때는 설치 파일을 받지 않습니다.
+
+Git 커밋이나 푸시만으로는 업데이트가 배포되지 않습니다. 해당 OS용 새 버전과 설치 파일이
+[GitHub Releases](https://github.com/jinoisfree/AIpet/releases)에 공개되어야 인식합니다.
+Mac은 쓰기 가능한 위치의 실행 중인 앱을 교체합니다. Windows ZIP으로 실행했어도 업데이트에 동의하면
+기본 설치 위치에 설치하고 기존 사본을 정리합니다. [업데이트·배포 상세](docs/업데이트.md)
 
 Mac은 압축을 풀어 `AIpet.app`을, Windows는 `AIpet.exe`를 실행하세요.
 Windows의 실제 UI·DPI·AI 연동은 아직 사용자 PC에서 확인해야 하며, 서명되지 않은 실행 파일입니다.
@@ -36,6 +51,7 @@ Claude 데스크톱 앱의 최근 사용량 기록이 있어야 합니다. API �
 
 - **Mac·Windows 사용량·추적 계정**: 쉬는 상태의 말풍선에서 Codex·Claude Code 남은 사용량과 가린 계정을 순환 표시합니다. 작업 목록·옵션에서는 추적 계정 이메일 전체를 확인할 수 있습니다.
 
+- **로그인 시 자동 실행**: Mac이나 Windows에 로그인하면 AIpet이 자동으로 실행되어 펫이 나타납니다. 기본으로 켜져 있으며 메뉴의 **로그인 시 자동 실행**(Windows: **Windows 시작 시 자동 실행**)으로 끌 수 있습니다. Mac은 시스템 설정의 로그인 항목에도 표시됩니다.
 - **여러 AI 작업 표시**: Codex와 Claude Code가 동시에 일하면 말풍선에 두 서비스 이름을 함께 표시합니다. 서비스별 작업 목록과 작업 고정을 지원합니다.
 - **이름과 크기 설정**: 펫 이름을 1~20자로 변경하면 안내·말풍선·미리보기·접근성 설명에 반영됩니다. 크기는 25~200%로 조절하며 말풍선과 글자 크기는 유지됩니다.
 - **선명한 펫 그리기**: 화면 픽셀에 맞춰 그리고 작은 크기의 외곽선과 큰 크기의 바깥 윤곽을 보강합니다. 원본 그림 파일은 유지합니다.
@@ -125,7 +141,7 @@ Codex 훅은 `/hooks`에서 사용자 신뢰 검토가 필요합니다. Claude C
 
 ## 상태 표시와 개인정보
 
-Mac 1.0.11의 사용량은 Codex 앱 서버의 계정·한도 조회(5분 간격)와 Claude 앱의 로컬 사용량 기록(30초 간격)을 사용합니다. Codex 작업 기록은 기존 상태 폴링(2초)에서 사용량 메타데이터도 읽습니다. Claude 기록의 조직 ID가 Claude Code 로그인 계정과 같을 때만 그 이메일을 연결합니다. 기록이 오래되면 현재 값처럼 표시하지 않고 `—`로 표시합니다.
+Mac의 사용량은 Codex 앱 서버의 계정·한도 조회(5분 간격)와 Claude 앱의 로컬 사용량 기록(30초 간격)을 사용합니다. Codex 작업 기록은 기존 상태 폴링(2초)에서 사용량 메타데이터도 읽습니다. Claude 기록의 조직 ID가 Claude Code 로그인 계정과 같을 때만 그 이메일을 연결합니다. 기록이 오래되면 현재 값처럼 표시하지 않고 `—`로 표시합니다.
 
 옵션의 **Claude 사용량 직접 조회는 기본 꺼짐**입니다. 켜면 키체인 허용 창이 나타날 수 있으며, Claude Code 로그인 토큰으로 `https://api.anthropic.com/api/oauth/usage`에만 조회합니다. 리디렉션을 거부하고 쿠키·캐시를 사용하지 않으며, 토큰·응답을 저장하거나 로그에 남기지 않습니다. 토큰 갱신이나 로그인 정보 쓰기도 하지 않습니다. 직접 조회는 120초 간격이며 요청 제한(429) 시 5·10·20분으로 늘립니다. 키체인 접근 거부 후에는 옵션을 껐다 켜거나 앱을 다시 시작하기 전까지 재시도하지 않습니다.
 
@@ -157,6 +173,10 @@ Codex·직접 조회 값은 60분, Claude 앱 기록은 30분간 유효합니다
 
 ## 태식이 자산과 이용 조건
 
-원본 자산은 [codex-pet-taesik](https://github.com/jinoisfree/codex-pet-taesik)의 커밋 `d277416db1cf0b465e72f6839035d8c46e338d35`에서 가져왔습니다. manifest와 WebP의 원본 바이트를 유지하며, 빌드용 PNG는 원본과 픽셀 단위로 비교합니다. 손 흔들기 동작만은 원본 시트를 바탕으로 팔을 짧게, 몸을 날씬하게 다시 그린 `Resources/Pet/wave.png`를 씁니다. 조는 모습은 쉬는 그림에서 눈을 감기고 머리만 조금 내린 `Resources/Pet/doze.png`를 씁니다. 두 그림은 `scripts/draw_wave.py`, `scripts/draw_doze.py`를 손으로 돌려 만들며, 빌드는 결과만 읽고 픽셀 해시로 고정합니다.
+확인이 필요한 작업이 있으면 뚱한 표정으로 휴대폰을 계속 흔들며, 일시 중지·동작 줄이기 설정은 그대로 적용됩니다.
+
+승인 대기 그림 `Resources/Pet/approval-phone.png`는 ddots 커밋 `db74d44b6ca79c39683220cfcd13cded6a44b62b`의 그림(기본 자세 크기 그대로, 뚱한 표정으로 폰만 손목 축으로 흔듦)을 사용하며, 두 플랫폼의 빌드에서 크기와 RGBA 픽셀 해시를 검증합니다.
+
+원본 자산은 [codex-pet-taesik](https://github.com/jinoisfree/codex-pet-taesik)의 커밋 `d277416db1cf0b465e72f6839035d8c46e338d35`에서 가져왔습니다. manifest와 WebP의 원본 바이트를 유지하며, 빌드용 PNG는 원본과 픽셀 단위로 비교합니다. 손 흔들기는 기본 자세에서 오른손만 드는 `Resources/Pet/wave.png`를 씁니다. 조는 모습은 쉬는 그림에서 눈을 감기고, 두 눈을 감으면 입을 벌리고 침을 흘리며 고개를 숙일수록 침이 길어지는 `Resources/Pet/doze.png`를 씁니다. 두 그림은 `scripts/draw_wave.py`, `scripts/draw_doze.py`를 손으로 돌려 만들며, 빌드는 결과만 읽고 픽셀 해시로 고정합니다.
 
 공개 저장소이지만 별도의 오픈 소스 재사용 허가는 부여하지 않습니다. 기존 **All rights reserved** 조건을 유지합니다. 자세한 내용은 [LICENSE](LICENSE)와 [자산 이용 조건](Resources/Pet/LICENSE)을 확인하세요.

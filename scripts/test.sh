@@ -2,6 +2,8 @@
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 mkdir -p "$ROOT/.build/module-cache"
+xcrun swiftc -swift-version 5 -module-cache-path "$ROOT/.build/module-cache" "$ROOT/Sources/AppUpdates.swift" "$ROOT/Sources/AppUpdateInstaller.swift" "$ROOT/Tests/AppUpdateTests.swift" -o "$ROOT/.build/AppUpdateTests"
+"$ROOT/.build/AppUpdateTests"
 xcrun swiftc -swift-version 5 -module-cache-path "$ROOT/.build/module-cache" "$ROOT/Sources/Models.swift" "$ROOT/Sources/ScreenFocus.swift" "$ROOT/Sources/ComputerUseActivity.swift" "$ROOT/Sources/Usage.swift" "$ROOT/Sources/TranscriptDecoder.swift" "$ROOT/Sources/Monitor.swift" "$ROOT/Sources/HookBridge.swift" "$ROOT/Tests/CoreTests.swift" -o "$ROOT/.build/CoreTests"
 "$ROOT/.build/CoreTests"
 xcrun swiftc -swift-version 5 -module-cache-path "$ROOT/.build/module-cache" "$ROOT/Sources/PetLayout.swift" "$ROOT/Tests/PetLayoutTests.swift" -o "$ROOT/.build/PetLayoutTests"
@@ -12,7 +14,7 @@ xcrun swiftc -swift-version 5 -module-cache-path "$ROOT/.build/module-cache" "$R
 "$ROOT/.build/InteractionTests"
 python3 "$ROOT/scripts/prepare_assets.py"
 xcrun swiftc -swift-version 5 -module-cache-path "$ROOT/.build/module-cache" "$ROOT/Sources/PetSpritePresentation.swift" "$ROOT/Tests/SpritePresentationTests.swift" -o "$ROOT/.build/SpritePresentationTests"
-"$ROOT/.build/SpritePresentationTests" "$ROOT/.build/assets/spritesheet.png" "$ROOT/.build" "$ROOT/Resources/Pet/wave.png" "$ROOT/Resources/Pet/doze.png"
+"$ROOT/.build/SpritePresentationTests" "$ROOT/.build/assets/spritesheet.png" "$ROOT/.build" "$ROOT/Resources/Pet/wave.png" "$ROOT/Resources/Pet/doze.png" "$ROOT/Resources/Pet/approval-phone.png"
 bash "$ROOT/scripts/compare_pet_rendering.sh"
 xcrun swiftc -swift-version 5 -module-cache-path "$ROOT/.build/module-cache" "$ROOT/Sources/BubbleReveal.swift" "$ROOT/Tests/BubbleRevealTests.swift" -o "$ROOT/.build/BubbleRevealTests"
 "$ROOT/.build/BubbleRevealTests"

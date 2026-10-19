@@ -8,6 +8,27 @@ struct SpriteRenderingTests {
         let output = URL(fileURLWithPath: CommandLine.arguments[2])
         try FileManager.default.createDirectory(at: output, withIntermediateDirectories: true)
         let atlas = try SpriteAtlas(resourceDirectory: resources)
+        precondition(atlas.counts[6] == 8 && atlas.counts[8] == 6)
+        let idle = atlas.image(row: 0, frame: 0).cgImage(forProposedRect: nil, context: nil, hints: nil)!
+        let idleBounds = SpriteContentMetrics.measure(idle)!.bounds
+        for scale in [0.25, 0.54, 1.0, 2.0] {
+            let cell = CGRect(x: -300, y: 20, width: 192 * scale, height: 208 * scale)
+            let idleRect = atlas.drawingRect(row: 0, frame: 0, in: cell)
+            for row in [3, 6, 11] {
+                for frame in 0..<atlas.counts[row] {
+                    let rect = atlas.drawingRect(row: row, frame: frame, in: cell)
+                    precondition(rect == idleRect, "wave, phone shake and doze share the idle presentation")
+                    if row == 11 { continue }
+                    let image = atlas.image(row: row, frame: frame).cgImage(forProposedRect: nil, context: nil, hints: nil)!
+                    let bounds = SpriteContentMetrics.measure(image)!.bounds
+                    precondition(bounds == idleBounds, "wave and phone art keep the idle bounds")
+                    let visible = CGRect(x: rect.minX + bounds.minX * rect.width / 192,
+                                         y: rect.maxY - bounds.maxY * rect.height / 208,
+                                         width: bounds.width * rect.width / 192, height: bounds.height * rect.height / 208)
+                    precondition(PetLayout.placementSprite(in: cell).contains(visible), "placement includes every wave and phone angle")
+                }
+            }
+        }
         func pixels(_ image: CGImage) -> [UInt8] {
             let ctx = PetSpriteRasterizer.context(width: image.width, height: image.height)!
             ctx.draw(image, in: CGRect(x: 0, y: 0, width: image.width, height: image.height))

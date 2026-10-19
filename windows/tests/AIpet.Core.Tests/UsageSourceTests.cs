@@ -160,4 +160,12 @@ public sealed class UsageSourceTests : TestSupport
         store.Save(new(ClaudeUsageDirectEnabled: true, CodexPath: @"C:\example\codex.cmd"));
         Assert.True(store.Load().ClaudeUsageDirectEnabled); Assert.Equal(@"C:\example\codex.cmd", store.Load().CodexPath);
     }
+    [Fact]
+    public void LaunchAtLoginDefaultsOnForOlderSettingsAndPersistsOff()
+    {
+        var path = Path.Combine(Root, "launch", "settings.json"); Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        File.WriteAllText(path, "{\"petName\":\"태식이\",\"petScale\":120}");
+        var store = new SettingsStore(path); Assert.True(store.Load().LaunchAtLogin); Assert.Equal(120, store.Load().PetScale);
+        store.Save(store.Load() with { LaunchAtLogin = false }); Assert.False(store.Load().LaunchAtLogin);
+    }
 }
