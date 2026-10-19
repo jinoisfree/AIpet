@@ -550,8 +550,9 @@ Core의 업데이트 클라이언트는 공개 Releases 메타데이터에서 `w
 로컬 검증: xUnit **156개 통과**(기존 122 + 추가 34), `win-x64` 자체 포함 단일 실행 파일 publish 성공,
 경고·오류 출력 없음. 다운로드 검사는 합성 응답·비실행 파일로 수행한다.
 설치 CI에는 실행 중 기존 프로세스 종료, 자동 업데이트 플래그의 새 프로세스 자동 실행, 설치본 해시,
-프로그램·업데이트 설정 보존 검사를 추가했다. Windows 설치 실행과 실제 사용자 PC의 안내/진행 UI는
-현재 Mac에서 검증하지 못했으며 푸시 후 Windows CI와 사용자 PC에서 확인해야 한다.
+프로그램·업데이트 설정 보존 검사를 추가했다. [Windows CI](https://github.com/jinoisfree/AIpet/actions/runs/39222522239)에서
+xUnit 157개와 설치·업그레이드 검사를 통과했다. 실제 사용자 PC의 안내/진행 UI는 아직 확인해야 한다.
 
 앱 표기는 `1.0.12-preview.1`, FileVersion·설치 프로그램 AppVersion은 `1.0.12.1`이다.
-새 공개 릴리스는 아직 생성하지 않았고, 루트 README의 현재 다운로드 링크는 기존 배포본을 가리킨다.
+[Windows 1.0.12 미리보기 1](https://github.com/jinoisfree/AIpet/releases/tag/windows-v1.0.12-preview.1)로 공개했으며,
+루트 README의 다운로드 링크도 이 배포본을 가리킨다.

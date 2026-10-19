@@ -2,21 +2,21 @@
 
 **AIpet**은 Codex와 Claude Code의 작업 상태를 알려 주는 독립형 데스크톱 펫입니다. macOS 정식 버전과 Windows 미리보기 버전을 제공합니다. AI가 작업하는 동안 태식이가 화면에 머물며 작업 중·확인 필요·응답 종료 등의 상태를 표시합니다.
 
-현재 macOS 소스 버전은 **1.0.12**입니다. Mac 앱은 Swift, AppKit, SwiftUI로, Windows 앱은 C# .NET 8 WPF로 구현했습니다. 실행할 때 Python, Node.js, API 키가 필요하지 않습니다.
+현재 macOS 소스 버전은 **1.0.12**로, 정식 배포본과 같습니다. Mac 앱은 Swift, AppKit, SwiftUI로, Windows 앱은 C# .NET 8 WPF로 구현했습니다. 실행할 때 Python, Node.js, API 키가 필요하지 않습니다.
 
 ## 운영체제별 다운로드
 
 | 운영체제 | 다운로드 | 상태 |
 |---|---|---|
-| **Mac · Apple Silicon** | [AIpet 1.0.11 ZIP](https://github.com/jinoisfree/AIpet/releases/download/v1.0.11/AIpet-1.0.11-arm64.zip) | 정식 배포본 · macOS 13 이상 빌드 대상 |
-| **Windows · x64** | [AIpet 1.0.11 Preview 3 ZIP](https://github.com/jinoisfree/AIpet/releases/download/windows-v1.0.11-preview.3/AIpet-1.0.11-preview.3-win-x64.zip) · [설치 프로그램](https://github.com/jinoisfree/AIpet/releases/download/windows-v1.0.11-preview.3/AIpet-Setup-win-x64.exe) | 창 전환 시 펫 가림 복구 보완 · 자체 포함 .NET 런타임 |
+| **Mac · Apple Silicon** | [AIpet 1.0.12 ZIP](https://github.com/jinoisfree/AIpet/releases/download/v1.0.12/AIpet-1.0.12-arm64.zip) | 정식 배포본 · macOS 13 이상 빌드 대상 · 앱 내 업데이트 |
+| **Windows · x64** | [AIpet 1.0.12 Preview 1 ZIP](https://github.com/jinoisfree/AIpet/releases/download/windows-v1.0.12-preview.1/AIpet-1.0.12-preview.1-win-x64.zip) · [설치 프로그램](https://github.com/jinoisfree/AIpet/releases/download/windows-v1.0.12-preview.1/AIpet-Setup-win-x64.exe) | 앱 내 업데이트 · 시작 시 자동 실행 · 새 모션 · 자체 포함 .NET 런타임 |
 
-업데이트: Mac은 실행 중인 AIpet을 종료하고 새 `AIpet.app`으로 덮어쓰세요. Windows는 설치 프로그램을 다시 실행하면 기존 설치본을 교체합니다. 두 방식 모두 설정을 유지합니다. Windows ZIP 사용자는 `AIpet.exe`를 종료한 뒤 새 파일로 교체하세요. Windows 설치 프로그램은 실행 중인 예전 AIpet을 종료하고 다른 위치의 예전 AIpet.exe를 정리합니다.
+앱 내 업데이트가 없는 구버전에서 처음 올릴 때는 직접 설치하세요. Mac은 실행 중인 AIpet을 종료하고 새 `AIpet.app`으로 교체하세요. Windows는 설치 프로그램을 실행하면 기존 설치본을 교체합니다. 두 방식 모두 설정을 유지합니다. Windows ZIP을 계속 사용하려면 `AIpet.exe`를 종료한 뒤 새 파일로 교체하세요. Windows 설치 프로그램은 실행 중인 예전 AIpet을 종료하고 다른 위치의 예전 AIpet.exe를 정리합니다.
 
-### 자동 업데이트 (다음 배포부터)
+### 자동 업데이트
 
-Mac **1.0.12**, Windows **1.0.12-preview.1** 소스에는 앱 내 업데이트가 포함되어 있습니다.
-위 표의 기존 배포본에는 이 기능이 없으므로, 기능이 포함된 새 배포본을 **처음 한 번은 직접 설치**해야 합니다.
+Mac **1.0.12**, Windows **1.0.12-preview.1**부터 앱 내 업데이트가 포함됩니다.
+그 이전 버전 사용자는 위 배포본을 **처음 한 번은 직접 설치**해야 합니다.
 
 - 앱 실행 약 20초 뒤부터 확인하며, 이후 실행 중에는 마지막 확인으로부터 약 6시간 간격으로 새 버전을 조회합니다.
 - 새 버전이 있으면 **지금 업데이트할까요?**를 묻습니다. 동의하면 다운로드·검증·기존 앱 교체·재실행을 진행합니다. 이름·크기·위치 설정은 유지합니다.
@@ -141,7 +141,7 @@ Codex 훅은 `/hooks`에서 사용자 신뢰 검토가 필요합니다. Claude C
 
 ## 상태 표시와 개인정보
 
-Mac 1.0.11의 사용량은 Codex 앱 서버의 계정·한도 조회(5분 간격)와 Claude 앱의 로컬 사용량 기록(30초 간격)을 사용합니다. Codex 작업 기록은 기존 상태 폴링(2초)에서 사용량 메타데이터도 읽습니다. Claude 기록의 조직 ID가 Claude Code 로그인 계정과 같을 때만 그 이메일을 연결합니다. 기록이 오래되면 현재 값처럼 표시하지 않고 `—`로 표시합니다.
+Mac의 사용량은 Codex 앱 서버의 계정·한도 조회(5분 간격)와 Claude 앱의 로컬 사용량 기록(30초 간격)을 사용합니다. Codex 작업 기록은 기존 상태 폴링(2초)에서 사용량 메타데이터도 읽습니다. Claude 기록의 조직 ID가 Claude Code 로그인 계정과 같을 때만 그 이메일을 연결합니다. 기록이 오래되면 현재 값처럼 표시하지 않고 `—`로 표시합니다.
 
 옵션의 **Claude 사용량 직접 조회는 기본 꺼짐**입니다. 켜면 키체인 허용 창이 나타날 수 있으며, Claude Code 로그인 토큰으로 `https://api.anthropic.com/api/oauth/usage`에만 조회합니다. 리디렉션을 거부하고 쿠키·캐시를 사용하지 않으며, 토큰·응답을 저장하거나 로그에 남기지 않습니다. 토큰 갱신이나 로그인 정보 쓰기도 하지 않습니다. 직접 조회는 120초 간격이며 요청 제한(429) 시 5·10·20분으로 늘립니다. 키체인 접근 거부 후에는 옵션을 껐다 켜거나 앱을 다시 시작하기 전까지 재시도하지 않습니다.
 
